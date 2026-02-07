@@ -58,13 +58,48 @@ class DiffView {
     const text = await response.text();
     const left = createElement('div', {className: 'diff'});
     const right = createElement('div', {className: 'diff'});
+    const deletedLines = [];
+    const insertedLines = [];
     for (const line of text.split('\n')) {
       if (!line.startsWith('-') && !line.startsWith('+')) {
-        while (left.children.length < right.children.length) {
-          left.append(createDiv());
-        }
-        while (right.children.length < left.children.length) {
-          right.append(createDiv());
+        while (deletedLines.length > 0 || insertedLines.length > 0) {
+          let deleted = deletedLines.shift();
+          let inserted = insertedLines.shift();
+          if (deleted && inserted) {
+            let p = 0;
+            while (p < deleted.length && deleted[p] == inserted[p]) {
+              p++;
+            }
+            let q = 0;
+            while (q < deleted.length - p && q < inserted.length - p &&
+                deleted.at(-q - 1) == inserted.at(-q - 1)) {
+              q++;
+            }
+            left.append(createElement('div', {className: 'del'}, [
+              deleted.substring(0, p),
+              createElement('span', {className: 'del'},
+                  [deleted.substring(p, deleted.length - q)]),
+              deleted.substring(deleted.length - q)
+            ]));
+            right.append(createElement('div', {className: 'ins'}, [
+              inserted.substring(0, p),
+              createElement('span', {className: 'ins'},
+                  [inserted.substring(p, inserted.length - q)]),
+              inserted.substring(inserted.length - q)
+            ]));
+          } else {
+            if (deleted != null) {
+              left.append(createElement('div', {className: 'del'}, [deleted]));
+            } else {
+              left.append(createDiv());
+            }
+            if (inserted != null) {
+              right.append(
+                  createElement('div', {className: 'ins'}, [inserted]));
+            } else {
+              right.append(createDiv());
+            }
+          }
         }
       }
 
@@ -79,11 +114,9 @@ class DiffView {
         left.append(createDiv(line.substring(1)));
         right.append(createDiv(line.substring(1)));
       } else if (line.startsWith('-') && !line.startsWith('--- ')) {
-        left.append(createElement(
-            'div', {className: 'del'}, [line.substring(1)]));
+        deletedLines.push(line.substring(1));
       } else if (line.startsWith('+') && !line.startsWith('+++ ')) {
-        right.append(createElement(
-            'div', {className: 'ins'}, [line.substring(1)]));
+        insertedLines.push(line.substring(1));
       }
     }
     this.element.append(left, right);
