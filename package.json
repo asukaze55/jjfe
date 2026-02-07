@@ -1,0 +1,16 @@
+{
+  "name": "jjfe",
+  "description": "JJ Frontend",
+  "author": "asukaze55",
+  "devDependencies": {
+    "nodemon": "^3.1.11",
+    "typescript": "^5.9.3",
+    "webpack": "^5.104.1",
+    "webpack-cli": "^6.0.1"
+  },
+  "scripts": {
+    "build": "npm --prefix client/pack run build",
+    "start": "npm --prefix server start",
+    "start-dev": "npm --prefix server run start-dev"
+  }
+}

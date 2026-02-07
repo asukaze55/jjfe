@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width">
+  <meta charset="UTF-8">
+  <meta http-equiv="content-language" content="ja">
+  <title>JJFE</title>
+  <style>
+    h1 {
+      font-size: 110%;
+      margin: 4px;
+    }
+    .diff-summary {
+      display: flex;
+    }
+    .diff-file-summary {
+      background: #cc3;
+      border-top: 1px solid #000;
+      display: flex;
+    }
+    .summary-label {
+      flex: auto;
+    }
+    .actions {
+      text-align: end;
+    }
+    .diff {
+      display: inline-block;
+      font-family: monospace;
+      overflow-x: scroll;
+      white-space: pre;
+      width: 50%;
+    }
+    .diff > div {
+      height: 1.2em;
+    }
+    .diff > .section {
+      background: #ccc;
+    }
+    .diff > .del {
+      background: #fcc;
+    }
+    .diff > .ins {
+      background: #cfc;
+    }
+  </style>
+</head>
+<body>
+
+<div id="jjfe"></div>
+
+<script src="asukaze_module.js"></script>
+<script src="asukaze_dom.js"></script>
+<script src="fetch_jj_dev.js"></script>
+<script src="jjfe.js"></script>
+</body>
+</html>
