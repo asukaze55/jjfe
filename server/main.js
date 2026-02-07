@@ -10,5 +10,5 @@ const server = createServer((request, response) => {
   }
 });
 
-server.listen(7474);
+server.listen(7474, '127.0.0.1');
 console.log("Server running at http://localhost:7474/");
