@@ -5,6 +5,30 @@ import { IncomingMessage, ServerResponse } from 'http';
 const isDev = argv.includes('--dev');
 
 /**
+ * @param {string} input
+ * @param {RegExp} regexp
+ * @returns {string}
+ */
+function validate(input, regexp) {
+  if (regexp.test(input)) {
+    return input;
+  }
+  throw `Validation Failed: ${input} !~ ${regexp}`;
+}
+
+/**
+ * @param {string} input
+ * @param {RegExp} regexp
+ * @returns {string}
+ */
+function validateRevision(input) {
+  if (input == '@') {
+    return input;
+  }
+  return validate(input, /^[k-z]{8,32}$/);
+}
+
+/**
  * @param {IncomingMessage} request
  * @param {ServerResponse} response
  */
@@ -28,25 +52,35 @@ function runJj(request, response) {
   request.on('end', () => {
     try {
       const json = JSON.parse(body);
-      const r = json.r ?? '@';
       let command = 'jj log';
       let options = {cwd: json.cwd};
       if (request.url == '/jj/abandon') {
+        const r = validateRevision(json.r);
         command = `jj abandon -r "${r}"`;
       } else if (request.url == '/jj/describe') {
+        const r = validateRevision(json.r);
         command = `jj describe -r "${r}" --stdin`;
         options.input = json.m;
       } else if (request.url == '/jj/diff') {
-        command = `jj diff --git -r "${r}" --context ${json.c} "${json.f}"`;
+        const r = validateRevision(json.r);
+        const c = validate(json.c, /^\d+$/);
+        const f = validate(json.f, /^[^\"]+$/);
+        command = `jj diff --git -r "${r}" --context ${c} "${f}"`;
       } else if (request.url == '/jj/edit') {
+        const r = validateRevision(json.r);
         command = `jj edit -r "${r}"`;
       } else if (request.url == '/jj/new') {
+        const r = validateRevision(json.r);
         command = `jj new -r "${r}"`;
       } else if (request.url == '/jj/rebase') {
-        command = `jj rebase -s "${json.s}" -o "${json.o}"`;
+        const s = validateRevision(json.s);
+        const o = validateRevision(json.o);
+        command = `jj rebase -s "${s}" -o "${o}"`;
       } else if (request.url == '/jj/show') {
+        const r = validateRevision(json.r);
         command = `jj show --name-only -r "${r}"`;
       } else if (request.url == '/jj/squash') {
+        const r = validateRevision(json.r);
         command = `jj squash -r "${r}"`;
       }
       const jjLog = execSync(command, options);
