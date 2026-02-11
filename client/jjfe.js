@@ -343,31 +343,31 @@ class ChangeView {
         moreButtons,
         createElement('pre', {}, [attributes]),
         createElement('pre', {}, [description]));
+    const actionButtons = (this.#diffViews.length < 2) ? [] : [
+      createButton('Collapse All', () => {
+        for (const diffView of this.#diffViews) {
+          diffView.context = DiffFileContext.COLLAPSED;
+          diffView.render();
+        }
+      }),
+      createButton('Diff All', () => {
+        for (const diffView of this.#diffViews) {
+          diffView.context = DiffFileContext.DIFF;
+          diffView.render();
+        }
+      }),
+      createButton('Expand All', () => {
+        for (const diffView of this.#diffViews) {
+          diffView.context = DiffFileContext.EXPANDED;
+          diffView.render();
+        }
+      })
+    ];
     this.diffElement.append(createElement('div', {className: 'diff-summary'}, [
       createElement('span', {className: 'summary-label'},
           [(this.#diffViews.length == 1)
               ? '1 file' : `${this.#diffViews.length} files`]),
-      createElement('span', {className: 'actions'}, [
-        createButton('Collapse All', () => {
-          for (const diffView of this.#diffViews) {
-            diffView.context = DiffFileContext.COLLAPSED;
-            diffView.render();
-          }
-        }),
-        createButton('Diff All', () => {
-          for (const diffView of this.#diffViews) {
-            diffView.context = DiffFileContext.DIFF;
-            diffView.render();
-          }
-        }),
-        createButton('Expand All', () => {
-          for (const diffView of this.#diffViews) {
-            diffView.context = DiffFileContext.EXPANDED;
-            diffView.render();
-          }
-        })
-      ])
-
+      createElement('span', {className: 'actions'}, actionButtons)
     ]), ...this.#diffViews.map(view => view.element));
   }
 
