@@ -65,7 +65,7 @@ function runJj(request, response) {
         const r = validateRevision(json.r);
         const c = validate(json.c, /^\d+$/);
         const f = validate(json.f, /^[^\"]+$/);
-        command = `jj diff --git -r "${r}" --context ${c} "${f}"`;
+        command = `jj diff --git -r "${r}" --context ${c} "file:'${f}'"`;
       } else if (request.url == '/jj/edit') {
         const r = validateRevision(json.r);
         command = `jj edit -r "${r}"`;
