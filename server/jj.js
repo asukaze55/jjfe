@@ -52,7 +52,7 @@ function runJj(request, response) {
   request.on('end', () => {
     try {
       const json = JSON.parse(body);
-      let command = 'jj log';
+      let command = 'jj log -r "ancestors(visible_heads(), 20)"';
       let options = {cwd: json.cwd};
       if (request.url == '/jj/abandon') {
         const r = validateRevision(json.r);
