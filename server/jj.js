@@ -57,6 +57,10 @@ function runJj(request, response) {
       if (request.url == '/jj/abandon') {
         const r = validateRevision(json.r);
         command = `jj abandon -r "${r}"`;
+      } else if (request.url == '/jj/bookmark-move') {
+        const r = validateRevision(json.r);
+        const b = validate(json.b, /^[\w\d\.]+$/);
+        command = `jj bookmark move "${b}" -t "${r}"`;
       } else if (request.url == '/jj/describe') {
         const r = validateRevision(json.r);
         command = `jj describe -r "${r}" --stdin`;

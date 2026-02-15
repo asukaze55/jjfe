@@ -123,6 +123,62 @@ class DiffView {
   }
 }
 
+class BookmarkDialog {
+  /** @type {Set<string>} */
+  #bookmarksSet;
+  /** @type {string} */
+  #description;
+  /** @type {string} */
+  #path;
+  /** @type {string} */
+  #revision;
+
+  /**
+   * @param {Set<string>} bookmarksSet
+   * @param {string} description
+   * @param {string} path
+   * @param {string} revision
+   */
+  constructor(bookmarksSet, description, path, revision) {
+    this.#bookmarksSet = bookmarksSet;
+    this.#description = description;
+    this.#path = path;
+    this.#revision = revision;
+  }
+
+  show() {
+    return new Promise(resolve => {
+      const select = createElement('select');
+      for (const bookmark of this.#bookmarksSet) {
+        select.append(createElement('option', {}, [bookmark]));
+      }
+      const dialog = createDialog([
+        createTitleBar(`Change: ${this.#revision}`, () => {
+          dialog.close();
+          document.body.removeChild(dialog);
+          resolve(null);
+        }),
+        createDiv('Bookmark: ', select),
+        createElement('pre', {}, [this.#description]),
+        createElement('div', {className: 'actions'}, [
+          createButton('Move', async () => {
+            await fetchJj('/jj/bookmark-move', {
+              cwd: this.#path,
+              r: this.#revision,
+              b: select.value
+            });
+            dialog.close();
+            document.body.removeChild(dialog);
+            resolve(null);
+          })
+        ])
+      ]);
+      document.body.append(dialog);
+      dialog.showModal();
+    });
+  }
+}
+
 class DescribeDialog {
   /** @type {string} */
   #description;
@@ -249,6 +305,8 @@ class ChangeView {
   #parent;
   /** @type {Map<string, string>} */
   #revisionsMap = new Map();
+  /** @type {Set<string>} */
+  #bookmarksSet = new Set();
 
   /**
    * @param {string} path
@@ -301,6 +359,11 @@ class ChangeView {
         createElement('div', {className: 'actions', style: 'display: none'}, [
           createButton('Abandon', async () => {
             await fetchJj('/jj/abandon', {cwd, r});
+            this.#parent.render();
+          }),
+          createButton('Bookmark', async () => {
+            await new BookmarkDialog(this.#bookmarksSet, description, cwd, r)
+                .show();
             this.#parent.render();
           }),
           createButton('Rebase', async () => {
@@ -379,9 +442,13 @@ class ChangeView {
     }
   }
 
-  /** @param {Map<string, string>} revisionsMap */
-  setRevisionsMap(revisionsMap) {
+  /**
+   * @param {Map<string, string>} revisionsMap
+   * @param {Set<string>} bookmarksSet
+   */
+  setRevisionsInfo(revisionsMap, bookmarksSet) {
     this.#revisionsMap = revisionsMap;
+    this.#bookmarksSet = bookmarksSet;
   }
 }
 
@@ -394,6 +461,8 @@ class RepositoryView {
   #changeView;
   /** @type {Map<string, string>} */
   #revisionsMap = new Map();
+  /** @type {Set<string>} */
+  #bookmarksSet = new Set();
 
   /** @param {string} path */
   constructor(path) {
@@ -421,11 +490,19 @@ class RepositoryView {
 
     this.#select.innerHTML = '';
     this.#revisionsMap = new Map();
+    this.#bookmarksSet = new Set();
     let revision = '';
     for (const line of text.split('\n')) {
-      const match = line.match(/[@◆○×].*([k-z]{8,32})/);
+      const match = line.match(/[@◆○×].*?([k-z]{8,32})\s+(.*)$/);
       if (match) {
         revision = match[1];
+        const bookmarks = match[2].split(/\s/).slice(3, -1);
+        for (const bookmark of bookmarks) {
+          const prefixMatch = bookmark.match(/^[\w\d\.]+/);
+          if (prefixMatch) {
+            this.#bookmarksSet.add(prefixMatch[0]);
+          }
+        }
       } else if (!this.#revisionsMap.has(revision)) {
         const match2 = line.match(/[\s│├─╯╮]*(.*)/);
         if (match2) {
@@ -434,7 +511,7 @@ class RepositoryView {
       }
       this.#select.append(createElement('option', {value: revision}, [line]));
     }
-    this.#changeView.setRevisionsMap(this.#revisionsMap);
+    this.#changeView.setRevisionsInfo(this.#revisionsMap, this.#bookmarksSet);
     this.#changeView.render();
   }
 }
