@@ -423,11 +423,11 @@ class RepositoryView {
     this.#revisionsMap = new Map();
     let revision = '';
     for (const line of text.split('\n')) {
-      const match = line.match(/[k-z]{8,32}/);
+      const match = line.match(/[@◆○×].*([k-z]{8,32})/);
       if (match) {
-        revision = match[0];
-      } else {
-        const match2 = line.match(/[\s│├─╯]*(.*)/);
+        revision = match[1];
+      } else if (!this.#revisionsMap.has(revision)) {
+        const match2 = line.match(/[\s│├─╯╮]*(.*)/);
         if (match2) {
           this.#revisionsMap.set(revision, match2[1]);
         }
