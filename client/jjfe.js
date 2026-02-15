@@ -399,9 +399,9 @@ class RepositoryView {
   constructor(path) {
     this.#path = path;
     this.#select = createElement('select', {
+      className: 'log',
       name: 'log',
       size: 10,
-      style: 'font-family: monospace; width: 50vw;',
       onchange: () => this.#changeView.setRevision(this.#select.value)
     });
     this.#changeView = new ChangeView(this.#path, '@', this);

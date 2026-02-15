@@ -8,7 +8,7 @@ HTTP サーバーとして動作しますが、アクセス認証等はしない
 ## インストール
 
 1. Jujutsu をインストール
-2. [node.js](https://nodejs.org/) をインストール
+2. [Node.js](https://nodejs.org/) をインストール
 3. JJFE のソースコードをダウンロード
 4. `npm install`
 5. `npm run build`
@@ -20,4 +20,4 @@ HTTP サーバーとして動作しますが、アクセス認証等はしない
 3. インプットボックスにリポジトリのパスを入力
 4. "Log" の下のセレクトボックスでチェンジを選択すると、そのチェンジの情報が表示される。
 
-![スクリーンショット](https://www.asukaze.net/image/2026/jjfe_20260207.png)
+![スクリーンショット](https://www.asukaze.net/image/2026/jjfe_20260215.png)
