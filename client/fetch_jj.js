@@ -5,13 +5,8 @@ net.asukaze.module((module, require) => {
  * @param {Object} json
  * @returns {Promise<string>}
  */
-async function fetchJj(command, json) {
-  const response = await fetch('/jj/' + command, {
-    method: 'POST',
-    headers: [['Content-Type', 'application/json']],
-    body: JSON.stringify(json)
-  });
-  return response.text()
+function fetchJj(command, json) {
+  return /** @type {any} */(window).__TAURI__.core.invoke(command, json);
 }
 
 module.exports = { fetchJj };

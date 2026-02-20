@@ -1,6 +1,5 @@
 .hg
 .hgignore
 node_modules
-package-lock.json
-resources
-src
+schemas
+target

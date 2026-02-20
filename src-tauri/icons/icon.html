@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<canvas id="icon" height="512" width="512"></canvas>
+<script>
+const canvas = document.getElementById('icon');
+const c = canvas.getContext('2d');
+
+c.fillStyle = '#fff';
+c.fillRect(0, 0, 512, 512);
+
+c.fillStyle = '#000';
+c.fillRect(64, 64, 384, 384);
+
+c.fillStyle = '#cc3';
+c.fillRect(72, 72, 368, 92);
+
+c.fillStyle = '#f99';
+c.fillRect(72, 164, 184, 184);
+c.fillStyle = '#9f9';
+c.fillRect(256, 164, 184, 184);
+
+c.fillStyle = '#fcc';
+c.fillRect(72, 348, 184, 92);
+c.fillStyle = '#cfc';
+c.fillRect(256, 348, 184, 92);
+
+c.fillStyle = '#000';
+c.font = 'bold 152px "Noto Sans JP"';
+c.fillText('JJ', 72, 338);
+c.fillText('FE', 256, 338);
+</script>

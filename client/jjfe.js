@@ -161,7 +161,7 @@ class BookmarkDialog {
         createElement('pre', {}, [this.#description]),
         createElement('div', {className: 'actions'}, [
           createButton('Move', async () => {
-            await fetchJj('bookmark-move', {
+            await fetchJj('bookmark_move', {
               cwd: this.#path,
               r: this.#revision,
               b: select.value

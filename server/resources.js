@@ -11,7 +11,7 @@ function loadResources(request, response) {
     return;
   }
   const url = URL.parse(request.url, 'http://localhost/');
-  let filePath = 'resources/' + url.pathname;
+  let filePath = '../client/' + url.pathname;
   if (filePath.endsWith('/')) {
     filePath += 'index.html';
   }

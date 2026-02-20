@@ -2,8 +2,6 @@ import { argv } from 'node:process';
 import { execSync } from 'child_process';
 import { IncomingMessage, ServerResponse } from 'http';
 
-const isDev = argv.includes('--dev');
-
 /**
  * @param {string} input
  * @param {RegExp} regexp
@@ -37,10 +35,6 @@ function runJj(request, response) {
     response.writeHead(404, 'Use POST to run JJ commands.');
     return;
   }
-  if (!isDev && request.headers['content-type'] != 'application/json') {
-    response.writeHead(415, 'Use application/json to run JJ commands.');
-    return;
-  }
 
   let body = '';
   request.on('readable', () => {
@@ -57,7 +51,7 @@ function runJj(request, response) {
       if (request.url == '/jj/abandon') {
         const r = validateRevision(json.r);
         command = `jj abandon -r "${r}"`;
-      } else if (request.url == '/jj/bookmark-move') {
+      } else if (request.url == '/jj/bookmark_move') {
         const r = validateRevision(json.r);
         const b = validate(json.b, /^[\w\d\.]+$/);
         command = `jj bookmark move "${b}" -t "${r}"`;
@@ -89,10 +83,10 @@ function runJj(request, response) {
       }
       const jjLog = execSync(command, options);
 
-      const headers = {'Content-Type': 'text/plain; charset=utf-8'};
-      if (isDev) {
-        headers['Access-Control-Allow-Origin'] = '*';
-      }
+      const headers = {
+        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'text/plain; charset=utf-8'
+      };
       response.writeHead(200, headers);
       response.end(String(jjLog));
     } catch (e) {

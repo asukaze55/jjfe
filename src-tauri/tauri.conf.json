@@ -1,0 +1,31 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "jjfe",
+  "version": "0.1.0",
+  "identifier": "net.asukaze.jjfe",
+  "build": {
+    "beforeBuildCommand": "npm --prefix client/pack run build",
+    "beforeDevCommand": "npm --prefix client/pack run build",
+    "frontendDist": "../client/pack/target/"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "JJFE",
+        "width": 1024,
+        "height": 600,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/icon.ico",
+      "icons/icon.png"
+    ]
+  }
+}
