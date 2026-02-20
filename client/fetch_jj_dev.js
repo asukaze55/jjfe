@@ -5,15 +5,16 @@ net.asukaze.module((module, require) => {
 // The server needs to run with `npm run start-dev`.
 
 /**
- * @param {string} path
+ * @param {string} command
  * @param {Object} json
- * @returns {Promise<Response>}
+ * @returns {Promise<string>}
  */
-function fetchJj(path, json) {
-  return fetch('http://localhost:7474' + path, {
+async function fetchJj(command, json) {
+  const response = await fetch('http://localhost:7474/jj/' + command, {
     method: 'POST',
     body: JSON.stringify(json)
   });
+  return response.text();
 }
 
 module.exports = { fetchJj };

@@ -1,16 +1,17 @@
 net.asukaze.module((module, require) => {
 
 /**
- * @param {string} path
+ * @param {string} command
  * @param {Object} json
- * @returns {Promise<Response>}
+ * @returns {Promise<string>}
  */
-function fetchJj(path, json) {
-  return fetch(path, {
+async function fetchJj(command, json) {
+  const response = await fetch('/jj/' + command, {
     method: 'POST',
     headers: [['Content-Type', 'application/json']],
     body: JSON.stringify(json)
   });
+  return response.text()
 }
 
 module.exports = { fetchJj };

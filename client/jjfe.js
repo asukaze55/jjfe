@@ -53,14 +53,13 @@ class DiffView {
     if (this.context == DiffFileContext.COLLAPSED) {
       return;
     }
-    const response = await fetchJj('/jj/diff',
+    const response = await fetchJj('diff',
         {cwd: this.#path, r: this.#revision, f: this.#file, c: this.context});
-    const text = await response.text();
     const left = createElement('div', {className: 'diff'});
     const right = createElement('div', {className: 'diff'});
     const deletedLines = [];
     const insertedLines = [];
-    for (const line of text.split('\n')) {
+    for (const line of response.split('\n')) {
       if (!line.startsWith('-') && !line.startsWith('+')) {
         while (deletedLines.length > 0 || insertedLines.length > 0) {
           let deleted = deletedLines.shift();
@@ -162,7 +161,7 @@ class BookmarkDialog {
         createElement('pre', {}, [this.#description]),
         createElement('div', {className: 'actions'}, [
           createButton('Move', async () => {
-            await fetchJj('/jj/bookmark-move', {
+            await fetchJj('bookmark-move', {
               cwd: this.#path,
               r: this.#revision,
               b: select.value
@@ -215,7 +214,7 @@ class DescribeDialog {
         textarea,
         createElement('div', {className: 'actions'}, [
           createButton('Describe', async () => {
-            await fetchJj('/jj/describe', {
+            await fetchJj('describe', {
               cwd: this.#path,
               r: this.#revision,
               m: textarea.value.trim()
@@ -277,7 +276,7 @@ class RebaseDialog {
         ontoSelect,
         createElement('div', {className: 'actions'}, [
           createButton('Rebase', async () => {
-            await fetchJj('/jj/rebase', {
+            await fetchJj('rebase', {
               cwd: this.#path,
               s: sourceSelect.value,
               o: ontoSelect.value
@@ -327,15 +326,14 @@ class ChangeView {
     if (!cwd || !r) {
       return;
     }
-    const response = await fetchJj('/jj/show', {cwd, r});
-    const text = await response.text();
+    const response = await fetchJj('show', {cwd, r});
 
     this.attributesElement.innerHTML = '';
     this.diffElement.innerHTML = '';
     this.#diffViews = [];
     let attributes = '';
     let description = '';
-    for (const line of text.split('\n')) {
+    for (const line of response.split('\n')) {
       if (line == '    (empty)(no description set)' ||
           line == '    (no description set)') {
         continue;
@@ -358,7 +356,7 @@ class ChangeView {
     const moreButtons =
         createElement('div', {className: 'actions', style: 'display: none'}, [
           createButton('Abandon', async () => {
-            await fetchJj('/jj/abandon', {cwd, r});
+            await fetchJj('abandon', {cwd, r});
             this.#parent.render();
           }),
           createButton('Bookmark', async () => {
@@ -388,16 +386,16 @@ class ChangeView {
             this.#parent.render();
           }),
           createButton('Edit', async () => {
-            await fetchJj('/jj/edit', {cwd, r});
+            await fetchJj('edit', {cwd, r});
             this.#parent.render();
           }),
           createButton('New', async () => {
-            await fetchJj('/jj/new', {cwd, r});
+            await fetchJj('new', {cwd, r});
             this.#revision = '@';
             this.#parent.render();
           }),
           createButton('Squash', async () => {
-            await fetchJj('/jj/squash', {cwd, r});
+            await fetchJj('squash', {cwd, r});
             this.#revision = '@';
             this.#parent.render();
           }),
@@ -485,14 +483,13 @@ class RepositoryView {
   }
 
   async render() {
-    const response = await fetchJj('/jj/log', {cwd: this.#path});
-    const text = await response.text();
+    const response = await fetchJj('log', {cwd: this.#path});
 
     this.#select.innerHTML = '';
     this.#revisionsMap = new Map();
     this.#bookmarksSet = new Set();
     let revision = '';
-    for (const line of text.split('\n')) {
+    for (const line of response.split('\n')) {
       const match = line.match(/[@◆○×].*?([k-z]{8,32})\s+(.*)$/);
       if (match) {
         revision = match[1];
