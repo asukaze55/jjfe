@@ -10,11 +10,19 @@ net.asukaze.module((module, require) => {
  * @returns {Promise<string>}
  */
 async function fetchJj(command, json) {
-  const response = await fetch('http://localhost:7474/jj/' + command, {
-    method: 'POST',
-    body: JSON.stringify(json)
-  });
-  return response.text();
+  try {
+    const response = await fetch('http://localhost:7474/jj/' + command, {
+      method: 'POST',
+      body: JSON.stringify(json)
+    });
+    if (response.status != 200) {
+      throw response.statusText + '\n\n' + await response.text();
+    }
+    return await response.text();
+  } catch (e) {
+    alert(e);
+    throw e;
+  }
 }
 
 module.exports = { fetchJj };
