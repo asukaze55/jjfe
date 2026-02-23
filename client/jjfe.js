@@ -33,8 +33,8 @@ class DiffView {
 
   async render() {
     this.element.innerHTML = '';
-    this.element.append(createElement('div', {className: 'diff-file-summary'}, [
-      createElement('span', {className: 'summary-label'}, [this.#file]),
+    this.element.append(createElement('div', {className: 'diff-file-header'}, [
+      createElement('span', {className: 'header-label'}, [this.#file]),
       createElement('span', {className: 'actions'}, [
         createButton('Collapse', () => {
           this.context = DiffFileContext.COLLAPSED;
@@ -354,7 +354,7 @@ class ChangeView {
     description = description.trim();
 
     const moreButtons =
-        createElement('div', {className: 'actions', style: 'display: none'}, [
+        createElement('div', {style: 'display: none'}, [
           createButton('Abandon', async () => {
             await fetchJj('abandon', {cwd, r});
             this.#parent.render();
@@ -379,29 +379,32 @@ class ChangeView {
       }
     });
     this.attributesElement.append(
-        createDiv(`Change: ${r}`),
-        createElement('div', {className: 'actions'}, [
-          createButton('Describe', async () => {
-            await new DescribeDialog(description, cwd, r).show();
-            this.#parent.render();
-          }),
-          createButton('Edit', async () => {
-            await fetchJj('edit', {cwd, r});
-            this.#parent.render();
-          }),
-          createButton('New', async () => {
-            await fetchJj('new', {cwd, r});
-            this.#revision = '@';
-            this.#parent.render();
-          }),
-          createButton('Squash', async () => {
-            await fetchJj('squash', {cwd, r});
-            this.#revision = '@';
-            this.#parent.render();
-          }),
-          moreButton
+        createElement('div', {className: 'section-header'}, [
+          createElement('span', {className: 'header-label'}, [`Change: ${r}`]),
+          createElement('div', {className: 'actions'}, [
+            createDiv(
+                createButton('Describe', async () => {
+                  await new DescribeDialog(description, cwd, r).show();
+                  this.#parent.render();
+                }),
+                createButton('Edit', async () => {
+                  await fetchJj('edit', {cwd, r});
+                  this.#parent.render();
+                }),
+                createButton('New', async () => {
+                  await fetchJj('new', {cwd, r});
+                  this.#revision = '@';
+                  this.#parent.render();
+                }),
+                createButton('Squash', async () => {
+                  await fetchJj('squash', {cwd, r});
+                  this.#revision = '@';
+                  this.#parent.render();
+                }),
+                moreButton),
+            moreButtons
+          ]),
         ]),
-        moreButtons,
         createElement('pre', {}, [attributes]),
         createElement('pre', {}, [description]));
     const actionButtons = (this.#diffViews.length < 2) ? [] : [
@@ -424,11 +427,12 @@ class ChangeView {
         }
       })
     ];
-    this.diffElement.append(createElement('div', {className: 'diff-summary'}, [
-      createElement('span', {className: 'summary-label'},
-          [(this.#diffViews.length == 1)
-              ? '1 file' : `${this.#diffViews.length} files`]),
-      createElement('span', {className: 'actions'}, actionButtons)
+    this.diffElement.append(
+      createElement('div', {className: 'section-header'}, [
+        createElement('span', {className: 'header-label'},
+            [(this.#diffViews.length == 1)
+                ? '1 file' : `${this.#diffViews.length} files`]),
+        createElement('span', {className: 'actions'}, actionButtons)
     ]), ...this.#diffViews.map(view => view.element));
   }
 
@@ -441,12 +445,15 @@ class ChangeView {
   }
 
   /**
+   * @param {string} revision
    * @param {Map<string, string>} revisionsMap
    * @param {Set<string>} bookmarksSet
    */
-  setRevisionsInfo(revisionsMap, bookmarksSet) {
+  setRevisionsInfo(revision, revisionsMap, bookmarksSet) {
+    this.#revision = revision;
     this.#revisionsMap = revisionsMap;
     this.#bookmarksSet = bookmarksSet;
+    return this.render();
   }
 }
 
@@ -474,8 +481,15 @@ class RepositoryView {
     this.#changeView = new ChangeView(this.#path, '@', this);
     this.element = createDiv(
         createElement('div', {style: 'display: flex'}, [
-          createElement('div', {style: 'flex: 1'},
-            [createDiv('Log'), this.#select]),
+          createElement('div', {style: 'flex: 1'}, [
+            createElement('div', {className: 'section-header'}, [
+              createElement('span', {className: 'header-label'}, ['Log']),
+              createElement('span', {className: 'actions'}, [
+                createButton('Reload', () => {
+                  this.render();
+                })
+              ])
+            ]), this.#select]),
           createElement('div', {style: 'flex: 1; padding-left: 1em;'},
             [this.#changeView.attributesElement])
         ]),
@@ -508,8 +522,8 @@ class RepositoryView {
       }
       this.#select.append(createElement('option', {value: revision}, [line]));
     }
-    this.#changeView.setRevisionsInfo(this.#revisionsMap, this.#bookmarksSet);
-    this.#changeView.render();
+    this.#changeView
+        .setRevisionsInfo('@', this.#revisionsMap, this.#bookmarksSet);
   }
 }
 
