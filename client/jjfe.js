@@ -524,6 +524,7 @@ class RepositoryView {
     }
     this.#changeView
         .setRevisionsInfo('@', this.#revisionsMap, this.#bookmarksSet);
+    localStorage.setItem('path', this.#path);
   }
 }
 
@@ -566,7 +567,8 @@ class JjfeView {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  const jjfeView = new JjfeView(location.hash.substring(1));
+  const path = location.hash.substring(1) || localStorage.getItem('path') || '';
+  const jjfeView = new JjfeView(path);
   jjfeView.render();
   document.getElementById('jjfe')?.append(jjfeView.element);
 });
