@@ -23,7 +23,7 @@ function validateRevision(input) {
   if (input == '@') {
     return input;
   }
-  return validate(input, /^[k-z]{8,32}$/);
+  return validate(input, /^[k-z]{4,32}$/);
 }
 
 /**
@@ -46,7 +46,9 @@ function runJj(request, response) {
   request.on('end', () => {
     try {
       const json = JSON.parse(body);
-      let command = 'jj log -r "ancestors(visible_heads(), 20)"';
+      let command = 'jj log -r "ancestors(visible_heads(), 20)" -T ' +
+          '"change_id.short(4) ++ \' \' ++ bookmarks ++ \' \' ++ tags ++ ' +
+          '\' \' ++ \' : \' ++ description.first_line()"';
       let options = {cwd: json.cwd};
       if (request.url == '/jj/abandon') {
         const r = validateRevision(json.r);

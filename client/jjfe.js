@@ -256,13 +256,12 @@ class RebaseDialog {
       sourceSelect.append(createElement('option', {value: '@'}, ['@']));
       const ontoSelect = createElement('select');
       ontoSelect.append(createElement('option', {value: '@'}, ['@']));
-      this.#revisionsMap.forEach((description, revision) => {
+      this.#revisionsMap.forEach((line, revision) => {
         sourceSelect.append(createElement('option', {
           selected: (revision == this.#revision),
           value: revision
-        }, [`${revision}: ${description}`]));
-        ontoSelect.append(createElement(
-            'option', {value: revision}, [`${revision}: ${description}`]));
+        }, [line]));
+        ontoSelect.append(createElement('option', {value: revision}, [line]));
       });
       const dialog = createDialog([
         createTitleBar('', () => {
@@ -504,21 +503,17 @@ class RepositoryView {
     this.#bookmarksSet = new Set();
     let revision = '';
     for (const line of response.split('\n')) {
-      const match = line.match(/[@◆○×].*?([k-z]{8,32})\s+(.*)$/);
+      const match = line.match(/([k-z]{4})\s+([^\:]*)\:.*$/);
       if (match) {
         revision = match[1];
-        const bookmarks = match[2].split(/\s/).slice(3, -1);
+        const bookmarks = match[2].split(/\s/);
         for (const bookmark of bookmarks) {
-          const prefixMatch = bookmark.match(/^[\w\d\.]+/);
-          if (prefixMatch) {
-            this.#bookmarksSet.add(prefixMatch[0]);
+          const bookmarkMatch = bookmark.match(/^[\w\d\.]+/);
+          if (bookmarkMatch) {
+            this.#bookmarksSet.add(bookmarkMatch[0]);
           }
         }
-      } else if (!this.#revisionsMap.has(revision)) {
-        const match2 = line.match(/[\s│├─╯╮]*(.*)/);
-        if (match2) {
-          this.#revisionsMap.set(revision, match2[1]);
-        }
+        this.#revisionsMap.set(revision, match[0]);
       }
       this.#select.append(createElement('option', {value: revision}, [line]));
     }

@@ -56,7 +56,7 @@ fn validate_revision<'a>(input: &'a str) -> &'a str {
     if input == "@" {
         input
     } else {
-        validate(input, r"^[k-z]{8,32}$")
+        validate(input, r"^[k-z]{4,32}$")
     }
 }
 
@@ -113,7 +113,18 @@ fn edit(cwd: &str, r: &str) -> Result<String> {
 
 #[tauri::command]
 fn log(cwd: &str) -> Result<String> {
-    shell_exec(cwd, &["jj", "log", "-r", "ancestors(visible_heads(), 20)"])
+    shell_exec(
+        cwd,
+        &[
+            "jj",
+            "log",
+            "-r",
+            "ancestors(visible_heads(), 20)",
+            "-T",
+            "change_id.short(4) ++ ' ' ++ bookmarks ++ ' ' ++ tags ++ ' ' ++ \
+                ' : ' ++ description.first_line()",
+        ],
+    )
 }
 
 #[tauri::command]
