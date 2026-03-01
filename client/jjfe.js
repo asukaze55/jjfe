@@ -347,10 +347,15 @@ class ChangeView {
       } else {
         const diffView = new DiffView(cwd, r, line);
         this.#diffViews.push(diffView);
-        diffView.render();
       }
     }
     description = description.trim();
+    const diffFileCount = this.#diffViews.length;
+    for (const diffView of this.#diffViews) {
+      diffView.context = (diffFileCount > 1)
+          ? DiffFileContext.COLLAPSED : DiffFileContext.DIFF;
+      diffView.render();
+    }
 
     const moreButtons =
         createElement('div', {style: 'display: none'}, [
@@ -406,7 +411,7 @@ class ChangeView {
         ]),
         createElement('pre', {}, [attributes]),
         createElement('pre', {}, [description]));
-    const actionButtons = (this.#diffViews.length < 2) ? [] : [
+    const actionButtons = (diffFileCount < 2) ? [] : [
       createButton('Collapse All', () => {
         for (const diffView of this.#diffViews) {
           diffView.context = DiffFileContext.COLLAPSED;
@@ -429,8 +434,7 @@ class ChangeView {
     this.diffElement.append(
       createElement('div', {className: 'section-header'}, [
         createElement('span', {className: 'header-label'},
-            [(this.#diffViews.length == 1)
-                ? '1 file' : `${this.#diffViews.length} files`]),
+            [(diffFileCount == 1) ? '1 file' : `${diffFileCount} files`]),
         createElement('span', {className: 'actions'}, actionButtons)
     ]), ...this.#diffViews.map(view => view.element));
   }
