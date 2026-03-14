@@ -17,7 +17,9 @@ class DiffView {
   /** @type {string} */
   #file;
   /** @type {DiffFileContext} */
-  context = DiffFileContext.DIFF;
+  #context = DiffFileContext.DIFF;
+  /** @type {string} */
+  #response = '';
 
   /**
    * @param {string} path
@@ -29,37 +31,42 @@ class DiffView {
     this.#revision = revision;
     this.#file = file;
     this.element = createDiv();
+    this.#fetch();
   }
 
-  async render() {
+  async #fetch() {
+    if (this.#context != DiffFileContext.COLLAPSED) {
+      this.#response = await fetchJj('diff', {
+        cwd: this.#path,
+        r: this.#revision,
+        f: this.#file,
+        c: this.#context
+      });
+    }
+    this.#render();
+  }
+
+  #render() {
     this.element.innerHTML = '';
     this.element.append(createElement('div', {className: 'diff-file-header'}, [
       createElement('span', {className: 'header-label'}, [this.#file]),
       createElement('span', {className: 'actions'}, [
-        createButton('Collapse', () => {
-          this.context = DiffFileContext.COLLAPSED;
-          this.render();
-        }),
-        createButton('Diff', () => {
-          this.context = DiffFileContext.DIFF;
-          this.render();
-        }),
-        createButton('Expand', () => {
-          this.context = DiffFileContext.EXPANDED;
-          this.render();
-        })
+        createButton('Collapse',
+            () => this.setContext(DiffFileContext.COLLAPSED)),
+        createButton('Diff',
+            () => this.setContext(DiffFileContext.DIFF)),
+        createButton('Expand',
+            () => this.setContext(DiffFileContext.EXPANDED))
       ])
     ]));
-    if (this.context == DiffFileContext.COLLAPSED) {
+    if (this.#context == DiffFileContext.COLLAPSED) {
       return;
     }
-    const response = await fetchJj('diff',
-        {cwd: this.#path, r: this.#revision, f: this.#file, c: this.context});
     const left = createElement('div', {className: 'diff'});
     const right = createElement('div', {className: 'diff'});
     const deletedLines = [];
     const insertedLines = [];
-    for (const line of response.split('\n')) {
+    for (const line of this.#response.split('\n')) {
       if (!line.startsWith('-') && !line.startsWith('+')) {
         while (deletedLines.length > 0 || insertedLines.length > 0) {
           let deleted = deletedLines.shift();
@@ -119,6 +126,14 @@ class DiffView {
       }
     }
     this.element.append(left, right);
+  }
+
+  /** @param {DiffFileContext} context */
+  setContext(context) {
+    if (context != this.#context) {
+      this.#context = context;
+      return this.#fetch();
+    }
   }
 }
 
@@ -297,42 +312,59 @@ class ChangeView {
   #path;
   /** @type {string} */
   #revision;
-  /** @type {DiffView[]} */
-  #diffViews = [];
+  /** @type {Map<string, string>} */
+  #revisionsMap;
+  /** @type {Set<string>} */
+  #bookmarksSet;
   /** @type {RepositoryView} */
   #parent;
-  /** @type {Map<string, string>} */
-  #revisionsMap = new Map();
-  /** @type {Set<string>} */
-  #bookmarksSet = new Set();
+  /** @type {string} */
+  #response = '';
+  /** @type {DiffView[]} */
+  #diffViews = [];
 
   /**
    * @param {string} path
    * @param {string} revision
+   * @param {Map<string, string>} revisionsMap
+   * @param {Set<string>} bookmarksSet
    * @param {RepositoryView} parent
    */
-  constructor(path, revision, parent) {
+  constructor(path, revision, revisionsMap, bookmarksSet, parent) {
     this.#path = path;
     this.#revision = revision;
+    this.#revisionsMap = revisionsMap;
+    this.#bookmarksSet = bookmarksSet;
     this.#parent = parent;
     this.attributesElement = createDiv();
     this.diffElement = createDiv();
+    this.#fetch();
   }
 
-  async render() {
+  async #fetch() {
     const cwd = this.#path;
     const r = this.#revision;
     if (!cwd || !r) {
       return;
     }
-    const response = await fetchJj('show', {cwd, r});
+
+    this.#response = await fetchJj('show', {cwd, r});
+    this.#render();
+  }
+
+  #render() {
+    const cwd = this.#path;
+    const r = this.#revision;
+    if (!cwd || !r) {
+      return;
+    }
 
     this.attributesElement.innerHTML = '';
     this.diffElement.innerHTML = '';
     this.#diffViews = [];
     let attributes = '';
     let description = '';
-    for (const line of response.split('\n')) {
+    for (const line of this.#response.split('\n')) {
       if (line == '    (empty)(no description set)' ||
           line == '    (no description set)') {
         continue;
@@ -352,25 +384,24 @@ class ChangeView {
     description = description.trim();
     const diffFileCount = this.#diffViews.length;
     for (const diffView of this.#diffViews) {
-      diffView.context = (diffFileCount > 1)
-          ? DiffFileContext.COLLAPSED : DiffFileContext.DIFF;
-      diffView.render();
+      diffView.setContext((diffFileCount > 1)
+          ? DiffFileContext.COLLAPSED : DiffFileContext.DIFF);
     }
 
     const moreButtons =
         createElement('div', {style: 'display: none'}, [
           createButton('Abandon', async () => {
             await fetchJj('abandon', {cwd, r});
-            this.#parent.render();
+            this.#parent.fetch();
           }),
           createButton('Bookmark', async () => {
             await new BookmarkDialog(this.#bookmarksSet, description, cwd, r)
                 .show();
-            this.#parent.render();
+            this.#parent.fetch();
           }),
           createButton('Rebase', async () => {
             await new RebaseDialog(this.#revisionsMap, cwd, r).show();
-            this.#parent.render();
+            this.#parent.fetch();
           }),
         ]);
     const moreButton = createButton('v', () => {
@@ -389,21 +420,21 @@ class ChangeView {
             createDiv(
                 createButton('Describe', async () => {
                   await new DescribeDialog(description, cwd, r).show();
-                  this.#parent.render();
+                  this.#parent.fetch();
                 }),
                 createButton('Edit', async () => {
                   await fetchJj('edit', {cwd, r});
-                  this.#parent.render();
+                  this.#parent.fetch();
                 }),
                 createButton('New', async () => {
                   await fetchJj('new', {cwd, r});
                   this.#revision = '@';
-                  this.#parent.render();
+                  this.#parent.fetch();
                 }),
                 createButton('Squash', async () => {
                   await fetchJj('squash', {cwd, r});
                   this.#revision = '@';
-                  this.#parent.render();
+                  this.#parent.fetch();
                 }),
                 moreButton),
             moreButtons
@@ -414,20 +445,17 @@ class ChangeView {
     const actionButtons = (diffFileCount < 2) ? [] : [
       createButton('Collapse All', () => {
         for (const diffView of this.#diffViews) {
-          diffView.context = DiffFileContext.COLLAPSED;
-          diffView.render();
+          diffView.setContext(DiffFileContext.COLLAPSED);
         }
       }),
       createButton('Diff All', () => {
         for (const diffView of this.#diffViews) {
-          diffView.context = DiffFileContext.DIFF;
-          diffView.render();
+          diffView.setContext(DiffFileContext.DIFF);
         }
       }),
       createButton('Expand All', () => {
         for (const diffView of this.#diffViews) {
-          diffView.context = DiffFileContext.EXPANDED;
-          diffView.render();
+          diffView.setContext(DiffFileContext.EXPANDED);
         }
       })
     ];
@@ -443,68 +471,34 @@ class ChangeView {
   setRevision(revision) {
     if (revision != this.#revision) {
       this.#revision = revision;
-      return this.render();
+      return this.#fetch();
     }
-  }
-
-  /**
-   * @param {string} revision
-   * @param {Map<string, string>} revisionsMap
-   * @param {Set<string>} bookmarksSet
-   */
-  setRevisionsInfo(revision, revisionsMap, bookmarksSet) {
-    this.#revision = revision;
-    this.#revisionsMap = revisionsMap;
-    this.#bookmarksSet = bookmarksSet;
-    return this.render();
   }
 }
 
 class RepositoryView {
   /** @type {string} */
   #path;
-  /** @type {HTMLSelectElement} */
-  #select;
   /** @type {ChangeView} */
   #changeView;
-  /** @type {Map<string, string>} */
-  #revisionsMap = new Map();
-  /** @type {Set<string>} */
-  #bookmarksSet = new Set();
+  /** @type {Array<{line: string, revision: string}>} */
+  #revisionsTree = [];
 
   /** @param {string} path */
   constructor(path) {
     this.#path = path;
-    this.#select = createElement('select', {
-      className: 'log',
-      name: 'log',
-      size: 10,
-      onchange: () => this.#changeView.setRevision(this.#select.value)
-    });
-    this.#changeView = new ChangeView(this.#path, '@', this);
-    this.element = createDiv(
-        createElement('div', {style: 'display: flex'}, [
-          createElement('div', {style: 'flex: 1'}, [
-            createElement('div', {className: 'section-header'}, [
-              createElement('span', {className: 'header-label'}, ['Log']),
-              createElement('span', {className: 'actions'}, [
-                createButton('Reload', () => {
-                  this.render();
-                })
-              ])
-            ]), this.#select]),
-          createElement('div', {style: 'flex: 1; padding-left: 1em;'},
-            [this.#changeView.attributesElement])
-        ]),
-        createDiv(this.#changeView.diffElement));
+    this.#changeView =
+        new ChangeView(this.#path, '@', new Map(), new Set(), this);
+    this.element = createDiv();
+    this.fetch();
   }
 
-  async render() {
+  async fetch() {
     const response = await fetchJj('log', {cwd: this.#path});
 
-    this.#select.innerHTML = '';
-    this.#revisionsMap = new Map();
-    this.#bookmarksSet = new Set();
+    const revisionsTree = [];
+    const revisionsMap = new Map();
+    const bookmarksSet = new Set();
     let revision = '';
     for (const line of response.split('\n')) {
       const match = line.match(/([k-z]{4})\s+([^\:]*)\:.*$/);
@@ -514,16 +508,48 @@ class RepositoryView {
         for (const bookmark of bookmarks) {
           const bookmarkMatch = bookmark.match(/^[\w\d\.]+/);
           if (bookmarkMatch) {
-            this.#bookmarksSet.add(bookmarkMatch[0]);
+            bookmarksSet.add(bookmarkMatch[0]);
           }
         }
-        this.#revisionsMap.set(revision, match[0]);
+        revisionsMap.set(revision, match[0]);
       }
-      this.#select.append(createElement('option', {value: revision}, [line]));
+      revisionsTree.push({line, revision});
     }
-    this.#changeView
-        .setRevisionsInfo('@', this.#revisionsMap, this.#bookmarksSet);
+
+    this.#revisionsTree = revisionsTree;
+    this.#changeView =
+        new ChangeView(this.#path, '@', revisionsMap, bookmarksSet, this);
     localStorage.setItem('path', this.#path);
+    this.#render();
+  }
+
+  #render() {
+    const select = createElement('select', {
+      className: 'log',
+      name: 'log',
+      size: 10,
+      onchange: () => this.#changeView.setRevision(select.value)
+    });
+    for (const {line, revision} of this.#revisionsTree) {
+      select.append(createElement('option', {value: revision}, [line]));
+    }
+
+    this.element.innerHTML = '';
+    this.element.append(
+        createElement('div', {style: 'display: flex'}, [
+          createElement('div', {style: 'flex: 1'}, [
+            createElement('div', {className: 'section-header'}, [
+              createElement('span', {className: 'header-label'}, ['Log']),
+              createElement('span', {className: 'actions'}, [
+                createButton('Reload', () => {
+                  this.fetch();
+                })
+              ])
+            ]), select]),
+          createElement('div', {style: 'flex: 1; padding-left: 1em;'},
+            [this.#changeView.attributesElement])
+        ]),
+        createDiv(this.#changeView.diffElement));
   }
 }
 
@@ -542,16 +568,17 @@ class JjfeView {
       onchange: () => {
         this.#path = this.#input.value;
         location.hash = '#' + this.#path;
-        this.render();
+        this.#render();
       }
     });
     this.element = createDiv(createElement('div', {style: 'display: flex;'}, [
       createElement('h1', {}, ['JJFE']),
       this.#input
     ]));
+    this.#render();
   }
 
-  async render() {
+  #render() {
     this.#input.value = this.#path;
     while (this.element.children.length > 1) {
       this.element.lastChild?.remove();
@@ -559,17 +586,13 @@ class JjfeView {
     if (!this.#path) {
       return;
     }
-    const repositoryView = new RepositoryView(this.#path);
-    repositoryView.render();
-    this.element.append(repositoryView.element);
+    this.element.append(new RepositoryView(this.#path).element);
   }
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
   const path = location.hash.substring(1) || localStorage.getItem('path') || '';
-  const jjfeView = new JjfeView(path);
-  jjfeView.render();
-  document.getElementById('jjfe')?.append(jjfeView.element);
+  document.getElementById('jjfe')?.append(new JjfeView(path).element);
 });
 
 });
