@@ -5,6 +5,7 @@ const { fetchJj } = require('./fetch_jj.js');
 /** @enum {number} */
 const ExpansionState = {
   COLLAPSED: -1,
+  MATCH: 0,
   DIFF: 5,
   EXPANDED: 1000
 };
@@ -50,7 +51,7 @@ class DiffView {
 
   #render() {
     this.element.innerHTML = '';
-    this.element.append(createElement('div', {className: 'diff-file-header'}, [
+    this.element.append(createElement('div', {className: 'file-header'}, [
       createElement('span', {className: 'header-label'}, [this.#file]),
       createElement('span', {className: 'actions'}, [
         createButton('Collapse',
@@ -160,8 +161,8 @@ class DiffsView {
 
   #render() {
     this.element.innerHTML = '';
-    const diffFileCount = this.#diffViews.length;
-    const actionButtons = (diffFileCount < 2) ? [] : [
+    const fileCount = this.#diffViews.length;
+    const actionButtons = (fileCount < 2) ? [] : [
       createButton('Collapse All', () => {
         for (const diffView of this.#diffViews) {
           diffView.setExpansionState(ExpansionState.COLLAPSED);
@@ -180,10 +181,11 @@ class DiffsView {
     ];
     this.element.append(
       createElement('div', {className: 'section-header'}, [
-        createElement('span', {className: 'header-label'},
-            [(diffFileCount == 1) ? '1 file' : `${diffFileCount} files`]),
+        createElement('span', {className: 'header-label'}, [
+          (fileCount == 1) ? '1 file changed' : `${fileCount} files changed`
+        ]),
         createElement('span', {className: 'actions'}, actionButtons)
-    ]), ...this.#diffViews.map(view => view.element));
+      ]), ...this.#diffViews.map(view => view.element));
   }
 
   /** @param {string[]} files */
@@ -193,6 +195,186 @@ class DiffsView {
     this.#diffViews = files.map(
         f => new DiffView(this.#path, this.#revision, f, expansionState));
     this.#render();
+  }
+}
+
+class FileView {
+  /** @type {string} */
+  #path;
+  /** @type {string} */
+  #revision;
+  /** @type {string} */
+  #file;
+  /** @type {string} */
+  #string = '';
+  /** @type {ExpansionState} */
+  #expansionState = ExpansionState.COLLAPSED;
+  /** @type {string} */
+  #response = '';
+
+  /**
+   * @param {string} path
+   * @param {string} revision
+   * @param {string} file
+   */
+  constructor(path, revision, file) {
+    this.#path = path;
+    this.#revision = revision;
+    this.#file = file;
+    this.element = createDiv();
+  }
+
+  async #fetch() {
+    if (this.#response == '' && this.#expansionState != ExpansionState.COLLAPSED) { 
+      this.#response = await fetchJj('file_show', {
+        cwd: this.#path,
+        r: this.#revision,
+        f: this.#file
+      });
+    }
+    this.#render();
+  }
+
+  #render() {
+    this.element.innerHTML = '';
+    this.element.append(createElement('div', {className: 'file-header'}, [
+      createElement('span', {className: 'header-label'}, [this.#file]),
+      createElement('span', {className: 'actions'}, [
+        createButton('Collapse',
+            () => this.setExpansionState(ExpansionState.COLLAPSED)),
+        createButton('Match',
+            () => this.setExpansionState(ExpansionState.MATCH)),
+        createButton('Expand',
+            () => this.setExpansionState(ExpansionState.EXPANDED))
+      ])
+    ]));
+    if (this.#expansionState == ExpansionState.COLLAPSED) {
+      return;
+    }
+    const div = createElement('div', {className: 'file'});
+    this.#response.split('\n').forEach((line, y) => {
+      const match = line.includes(this.#string);
+      if (!match && this.#expansionState != ExpansionState.EXPANDED) {
+        return;
+      }
+      const lineDiv = createElement('div', {className: 'line'});
+      lineDiv.dataset.lineNumber = String(y + 1);
+      if (line.includes(this.#string)) {
+        const spans = line.split(this.#string);
+        lineDiv.append(spans[0]);
+        for (let i = 1; i < spans.length; i++) {
+          lineDiv.append(
+              createElement('span', {className: 'match'}, [this.#string]),
+              spans[i]);
+        }
+      } else {
+        lineDiv.append(line);
+      }
+      div.append(lineDiv);
+    });
+    this.element.append(div);
+  }
+
+  /**
+   * @param {string} string
+   * @param {ExpansionState} expansionState
+   */
+  setContext(string, expansionState) {
+    if (string != this.#string || expansionState != this.#expansionState) {
+      this.#string = string;
+      this.#expansionState = expansionState;
+      this.#fetch();
+    }
+  }
+
+  /** @param {ExpansionState} expansionState */
+  setExpansionState(expansionState) {
+    if (expansionState != this.#expansionState) {
+      this.#expansionState = expansionState;
+      this.#fetch();
+    }
+  }
+}
+
+class SearchView {
+  /** @type {string} */
+  #path;
+  /** @type {string} */
+  #revision;
+  /** @type {string} */
+  #string = '';
+  /** @type {string[]} */
+  #files = []
+  /** @type {Map<string, FileView>} */
+  #fileViews = new Map();
+
+  /**
+   * @param {string} path
+   * @param {string} revision
+   */
+  constructor(path, revision) {
+    this.#path = path;
+    this.#revision = revision;
+    this.element = createDiv();
+    this.#render();
+  }
+
+  async #fetch() {
+    const response = await fetchJj('file_search', {
+      cwd: this.#path,
+      r: this.#revision,
+      p: '*' + this.#string + '*'
+    });
+    this.#files = response.split('\n').filter(f => f);
+    this.#render();
+  }
+
+  #render() {
+    this.element.innerHTML = '';
+    const fileCount = this.#files.length;
+    /** @type {FileView[]} */
+    const fileViews = [];
+    for (const file of this.#files) {
+      let view = this.#fileViews.get(file);
+      if (!view) {
+        view = new FileView(this.#path, this.#revision, file);
+        this.#fileViews.set(file, view);
+      }
+      view.setContext(this.#string,
+          (fileCount > 1) ? ExpansionState.COLLAPSED : ExpansionState.DIFF);
+      fileViews.push(view);
+    }
+    const actionButtons = (fileCount < 2) ? [] : [
+      createButton('Collapse All', () => {
+        for (const fileView of fileViews) {
+          fileView.setExpansionState(ExpansionState.COLLAPSED);
+        }
+      }),
+      createButton('Match All', () => {
+        for (const fileView of fileViews) {
+          fileView.setExpansionState(ExpansionState.MATCH);
+        }
+      }),
+      createButton('Expand All', () => {
+        for (const fileView of fileViews) {
+          fileView.setExpansionState(ExpansionState.EXPANDED);
+        }
+      })
+    ];
+    this.element.append(
+      createElement('div', {className: 'section-header'}, [
+        createElement('span', {className: 'header-label'},
+            [(fileCount == 1) ? '1 file found' : `${fileCount} files found`]),
+        createElement('span', {className: 'actions'}, actionButtons)
+      ]), ...fileViews.map(view => view.element));
+  }
+
+  /** @param {string} string */
+  setSearchString(string) {
+    if (string != this.#string) {
+      this.#string = string;
+      this.#fetch();
+    }
   }
 }
 
@@ -379,8 +561,14 @@ class ChangeView {
   #parent;
   /** @type {string} */
   #response = '';
+  /** @type {HTMLDivElement} */
+  #attributesDiv;
+  /** @type {HTMLInputElement} */
+  #searchInput;
   /** @type {DiffsView} */
   #diffsView;
+  /** @type {SearchView} */
+  #searchView;
 
   /**
    * @param {string} path
@@ -396,7 +584,25 @@ class ChangeView {
     this.#bookmarksSet = bookmarksSet;
     this.#parent = parent;
     this.#diffsView = new DiffsView(path, revision);
-    this.attributesElement = createDiv();
+    this.#searchView = new SearchView(path, revision);
+    this.#attributesDiv = createElement('div', {style: 'flex: 1'});
+    this.#searchInput = createElement('input', {
+      name: 'q',
+      oninput: () => {
+        this.#searchView.setSearchString(this.#searchInput.value);
+        this.#render();
+      }
+    });
+    this.attributesElement = createElement('div',
+        {style: 'display: flex; flex-direction: column; height: 100%;'}, [
+          this.#attributesDiv,
+          createElement('div', {className: 'section-header'}, [
+            createElement('span', {className: 'header-label'}),
+            createElement('span', {className: 'actions'}, [
+              createElement('label', {}, ['🔍', this.#searchInput])
+            ])
+          ])
+        ]);
     this.filesElement = createDiv();
     this.#fetch();
   }
@@ -418,9 +624,6 @@ class ChangeView {
     if (!cwd || !r) {
       return;
     }
-
-    this.attributesElement.innerHTML = '';
-    this.filesElement.innerHTML = '';
 
     const files = [];
     let attributes = '';
@@ -469,7 +672,8 @@ class ChangeView {
         moreButton.innerText = 'v';
       }
     });
-    this.attributesElement.append(
+    this.#attributesDiv.innerHTML = '';
+    this.#attributesDiv.append(
         createElement('div', {className: 'section-header'}, [
           createElement('span', {className: 'header-label'}, [`Change: ${r}`]),
           createElement('div', {className: 'actions'}, [
@@ -498,14 +702,21 @@ class ChangeView {
         ]),
         createElement('pre', {}, [attributes]),
         createElement('pre', {}, [description]));
-    this.filesElement.append(this.#diffsView.element);
+    this.filesElement.innerHTML = '';
+    if (this.#searchInput.value) {
+      this.filesElement.append(this.#searchView.element);
+    } else {
+      this.filesElement.append(this.#diffsView.element);
+    }
   }
 
   /** @param {string} revision */
   setRevision(revision) {
     if (revision != this.#revision) {
       this.#revision = revision;
+      this.#searchInput.value = '';
       this.#diffsView = new DiffsView(this.#path, revision);
+      this.#searchView = new SearchView(this.#path, revision);
       return this.#fetch();
     }
   }

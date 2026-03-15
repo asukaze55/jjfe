@@ -69,6 +69,14 @@ function runJj(request, response) {
       } else if (request.url == '/jj/edit') {
         const r = validateRevision(json.r);
         command = `jj edit -r "${r}"`;
+      } else if (request.url == '/jj/file_search') {
+        const r = validateRevision(json.r);
+        const p = validate(json.p, /^[^\"]+$/);
+        command = `jj file search -r "${r}" -p "${p}"`;
+      } else if (request.url == '/jj/file_show') {
+        const r = validateRevision(json.r);
+        const f = validate(json.f, /^[^\"]+$/);
+        command = `jj file show -r "${r}" "${f}"`;
       } else if (request.url == '/jj/new') {
         const r = validateRevision(json.r);
         command = `jj new -r "${r}"`;

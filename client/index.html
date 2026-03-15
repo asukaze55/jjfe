@@ -12,7 +12,7 @@
     .section-header {
       display: flex;
     }
-    .diff-file-header {
+    .file-header {
       background: #cc3;
       border-top: 1px solid #000;
       display: flex;
@@ -47,6 +47,25 @@
     }
     .diff span.ins {
       background: #9f9;
+    }
+    .file {
+      font-family: monospace;
+      overflow-x: scroll;
+      white-space: pre;
+    }
+    .file .match {
+      background: #ff0;
+      font-weight: bold;
+    }
+    .line::before {
+      border-right: solid 1px #000;
+      content: attr(data-line-number);
+      display: inline-block;
+      height: 100%;
+      margin-right: 8px;
+      min-width: 2em;
+      padding-right: 8px;
+      text-align: right;
     }
     .log {
       font-family: "JetBrains Mono", "Cascadia Code", "Fira Code", monospace;

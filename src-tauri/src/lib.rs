@@ -112,6 +112,37 @@ fn edit(cwd: &str, r: &str) -> Result<String> {
 }
 
 #[tauri::command]
+fn file_search(cwd: &str, r: &str, p: &str) -> Result<String> {
+    shell_exec(
+        cwd,
+        &[
+            "jj",
+            "file",
+            "search",
+            "-r",
+            validate_revision(r),
+            "-p",
+            validate(p, "^[^\"]+$"),
+        ],
+    )
+}
+
+#[tauri::command]
+fn file_show(cwd: &str, r: &str, f: &str) -> Result<String> {
+    shell_exec(
+        cwd,
+        &[
+            "jj",
+            "file",
+            "show",
+            "-r",
+            validate_revision(r),
+            validate(f, "^[^\"]+$"),
+        ],
+    )
+}
+
+#[tauri::command]
 fn log(cwd: &str) -> Result<String> {
     shell_exec(
         cwd,
@@ -169,6 +200,8 @@ pub fn run() {
             describe,
             diff,
             edit,
+            file_search,
+            file_show,
             log,
             new,
             rebase,
