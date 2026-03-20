@@ -3,7 +3,7 @@ const { createButton, createDialog, createDiv, createElement, createTitleBar } =
 const { fetchJj } = require('./fetch_jj.js');
 
 /** @enum {number} */
-const DiffFileContext = {
+const ExpansionState = {
   COLLAPSED: -1,
   DIFF: 5,
   EXPANDED: 1000
@@ -16,8 +16,8 @@ class DiffView {
   #revision;
   /** @type {string} */
   #file;
-  /** @type {DiffFileContext} */
-  #context;
+  /** @type {ExpansionState} */
+  #expansionState;
   /** @type {string} */
   #response = '';
 
@@ -25,24 +25,24 @@ class DiffView {
    * @param {string} path
    * @param {string} revision
    * @param {string} file
-   * @param {DiffFileContext} context
+   * @param {ExpansionState} expansionState
    */
-  constructor(path, revision, file, context) {
+  constructor(path, revision, file, expansionState) {
     this.#path = path;
     this.#revision = revision;
     this.#file = file;
-    this.#context = context;
+    this.#expansionState = expansionState;
     this.element = createDiv();
     this.#fetch();
   }
 
   async #fetch() {
-    if (this.#context != DiffFileContext.COLLAPSED) {
+    if (this.#expansionState != ExpansionState.COLLAPSED) {
       this.#response = await fetchJj('diff', {
         cwd: this.#path,
         r: this.#revision,
         f: this.#file,
-        c: this.#context
+        c: this.#expansionState
       });
     }
     this.#render();
@@ -54,14 +54,14 @@ class DiffView {
       createElement('span', {className: 'header-label'}, [this.#file]),
       createElement('span', {className: 'actions'}, [
         createButton('Collapse',
-            () => this.setContext(DiffFileContext.COLLAPSED)),
+            () => this.setExpansionState(ExpansionState.COLLAPSED)),
         createButton('Diff',
-            () => this.setContext(DiffFileContext.DIFF)),
+            () => this.setExpansionState(ExpansionState.DIFF)),
         createButton('Expand',
-            () => this.setContext(DiffFileContext.EXPANDED))
+            () => this.setExpansionState(ExpansionState.EXPANDED))
       ])
     ]));
-    if (this.#context == DiffFileContext.COLLAPSED) {
+    if (this.#expansionState == ExpansionState.COLLAPSED) {
       return;
     }
     const left = createElement('div', {className: 'diff'});
@@ -130,10 +130,10 @@ class DiffView {
     this.element.append(left, right);
   }
 
-  /** @param {DiffFileContext} context */
-  setContext(context) {
-    if (context != this.#context) {
-      this.#context = context;
+  /** @param {ExpansionState} expansionState */
+  setExpansionState(expansionState) {
+    if (expansionState != this.#expansionState) {
+      this.#expansionState = expansionState;
       return this.#fetch();
     }
   }
@@ -164,17 +164,17 @@ class DiffsView {
     const actionButtons = (diffFileCount < 2) ? [] : [
       createButton('Collapse All', () => {
         for (const diffView of this.#diffViews) {
-          diffView.setContext(DiffFileContext.COLLAPSED);
+          diffView.setExpansionState(ExpansionState.COLLAPSED);
         }
       }),
       createButton('Diff All', () => {
         for (const diffView of this.#diffViews) {
-          diffView.setContext(DiffFileContext.DIFF);
+          diffView.setExpansionState(ExpansionState.DIFF);
         }
       }),
       createButton('Expand All', () => {
         for (const diffView of this.#diffViews) {
-          diffView.setContext(DiffFileContext.EXPANDED);
+          diffView.setExpansionState(ExpansionState.EXPANDED);
         }
       })
     ];
@@ -188,10 +188,10 @@ class DiffsView {
 
   /** @param {string[]} files */
   async setFiles(files) {
-    const context =
-        (files.length > 1) ? DiffFileContext.COLLAPSED : DiffFileContext.DIFF;
-    this.#diffViews =
-        files.map(f => new DiffView(this.#path, this.#revision, f, context));
+    const expansionState =
+        (files.length > 1) ? ExpansionState.COLLAPSED : ExpansionState.DIFF;
+    this.#diffViews = files.map(
+        f => new DiffView(this.#path, this.#revision, f, expansionState));
     this.#render();
   }
 }
