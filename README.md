@@ -7,7 +7,7 @@
 
 あらかじめ Jujutsu をインストールし、jj.exe にパスを通しておいてください。
 
-https://github.com/asukaze55/jjfe/releases から jjfe_0.3.0.zip をダウンロードし、適当なフォルダに展開してください。
+https://github.com/asukaze55/jjfe/releases から jjfe_0.4.0.zip をダウンロードし、適当なフォルダに展開してください。
 中の jjfe.exe が Windows 用の実行ファイルです。
 
 ダブルクリックで起動後、インプットボックスにリポジトリのパスを入力してください。
@@ -18,7 +18,7 @@ https://github.com/asukaze55/jjfe/releases から jjfe_0.3.0.zip をダウンロ
 
 開発環境として使っている [Tauri](https://v2.tauri.app/) はクロスプラットフォーム対応ですが、今のところ Windows 用以外のバイナリは用意していません。
 
-![スクリーンショット](https://www.asukaze.net/soft/jjfe/jjfe_030.png)
+![スクリーンショット](https://www.asukaze.net/soft/jjfe/jjfe_040.png)
 
 ## Web サーバー
 
