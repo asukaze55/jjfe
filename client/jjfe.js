@@ -569,10 +569,6 @@ class ChangeView {
   #path;
   /** @type {string} */
   #revision;
-  /** @type {Map<string, string>} */
-  #revisionsMap;
-  /** @type {Set<string>} */
-  #bookmarksSet;
   /** @type {RepositoryView} */
   #parent;
   /** @type {ChangeDetails} */
@@ -589,15 +585,11 @@ class ChangeView {
   /**
    * @param {string} path
    * @param {string} revision
-   * @param {Map<string, string>} revisionsMap
-   * @param {Set<string>} bookmarksSet
    * @param {RepositoryView} parent
    */
-  constructor(path, revision, revisionsMap, bookmarksSet, parent) {
+  constructor(path, revision, parent) {
     this.#path = path;
     this.#revision = revision;
-    this.#revisionsMap = revisionsMap;
-    this.#bookmarksSet = bookmarksSet;
     this.#parent = parent;
     this.#diffsView = new DiffsView(path, revision);
     this.#searchView = new SearchView(path, revision);
@@ -671,19 +663,10 @@ class ChangeView {
 
     const moreButtons =
         createElement('div', {style: 'display: none'}, [
-          createButton('Abandon', async () => {
-            await fetchJj('abandon', {cwd, r});
-            this.#parent.fetch();
-          }),
-          createButton('Bookmark', async () => {
-            await new BookmarkDialog(this.#bookmarksSet,
-                this.#changeDetails.description, cwd, r).show();
-            this.#parent.fetch();
-          }),
-          createButton('Rebase', async () => {
-            await new RebaseDialog(this.#revisionsMap, cwd, r).show();
-            this.#parent.fetch();
-          }),
+          createButton('Abandon', () => this.#parent.abandon(r)),
+          createButton('Bookmark',
+              () => this.#parent.bookmark(r, this.#changeDetails)),
+          createButton('Rebase', () => this.#parent.rebase(r)),
         ]);
     const moreButton = createButton('v', () => {
       if (moreButtons.style.display == 'none') {
@@ -700,25 +683,11 @@ class ChangeView {
           createElement('span', {className: 'header-label'}, [`Change: ${r}`]),
           createElement('div', {className: 'actions'}, [
             createDiv(
-                createButton('Describe', async () => {
-                  await new DescribeDialog(
-                      this.#changeDetails.description, cwd, r).show();
-                  this.#parent.fetch();
-                }),
-                createButton('Edit', async () => {
-                  await fetchJj('edit', {cwd, r});
-                  this.#parent.fetch();
-                }),
-                createButton('New', async () => {
-                  await fetchJj('new', {cwd, r});
-                  this.#revision = '@';
-                  this.#parent.fetch();
-                }),
-                createButton('Squash', async () => {
-                  await fetchJj('squash', {cwd, r});
-                  this.#revision = '@';
-                  this.#parent.fetch();
-                }),
+                createButton('Describe',
+                    () => this.#parent.describe(r, this.#changeDetails)),
+                createButton('Edit', () => this.#parent.edit(r)),
+                createButton('New', () => this.#parent.new(r)),
+                createButton('Squash', () => this.#parent.squash(r)),
                 moreButton),
             moreButtons
           ]),
@@ -733,15 +702,91 @@ class ChangeView {
     }
   }
 
-  /** @param {string} revision */
+  /**
+   * @param {string} revision
+   * @returns {ChangeDetails|Promise<ChangeDetails>}
+   */
   setRevision(revision) {
-    if (revision != this.#revision) {
-      this.#revision = revision;
-      this.#searchInput.value = '';
-      this.#diffsView = new DiffsView(this.#path, revision);
-      this.#searchView = new SearchView(this.#path, revision);
-      return this.#fetch();
+    if (revision == this.#revision) {
+      return this.#changeDetails;
     }
+    this.#revision = revision;
+    this.#searchInput.value = '';
+    this.#diffsView = new DiffsView(this.#path, revision);
+    this.#searchView = new SearchView(this.#path, revision);
+    return this.#fetch();
+  }
+}
+
+class PopupMenu {
+  /** @type {ChangeDetails|Promise<ChangeDetails>} */
+  #changeDetails;
+  /** @type {string} */
+  #revision;
+  /** @type {RepositoryView} */
+  #parent;
+  /** @type {number} */
+  #x;
+  /** @type {number} */
+  #y;
+
+  /**
+   * @param {ChangeDetails|Promise<ChangeDetails>} changeDetails
+   * @param {string} revision
+   * @param {RepositoryView} parent
+   * @param {number} x
+   * @param {number} y
+   */
+  constructor(changeDetails, revision, parent, x, y) {
+    this.#changeDetails = changeDetails;
+    this.#revision = revision;
+    this.#parent = parent;
+    this.#x = x;
+    this.#y = y;
+  }
+
+  /** @returns {Promise<void>} */
+  show() {
+    return new Promise(resolve => {
+      const dialog = createDialog([
+        createElement('ul', {}, [
+          createElement('li', {
+            onclick: () => this.#parent.edit(this.#revision)
+          }, ['Edit']),
+          createElement('li', {
+            onclick: () => this.#parent.new(this.#revision)
+          }, ['New']),
+          createElement('li', {
+            onclick: () =>
+                this.#parent.describe(this.#revision, this.#changeDetails)
+          }, ['Describe']),
+          createElement('li', {
+            onclick: () => this.#parent.squash(this.#revision)
+          }, ['Squash']),
+          createElement('li', {
+            onclick: () => this.#parent.rebase(this.#revision)
+          }, ['Rebase']),
+          createElement('li', {
+            onclick: () =>
+                this.#parent.bookmark(this.#revision, this.#changeDetails)
+          }, ['Bookmark']),
+          createElement('li', {
+            onclick: () => this.#parent.abandon(this.#revision)
+          }, ['Abandon'])
+        ])
+      ], {className: 'menu'});
+      const closeDialog = () => dialog.close();
+      dialog.addEventListener('close', () => {
+        document.body.removeChild(dialog);
+        document.removeEventListener('click', closeDialog);
+        resolve();
+      }, {once: true});
+      dialog.style.left = this.#x + 'px';
+      dialog.style.top = this.#y + 'px';
+      document.body.append(dialog);
+      document.addEventListener('click', closeDialog);
+      dialog.show();
+    });
   }
 }
 
@@ -752,14 +797,50 @@ class RepositoryView {
   #changeView;
   /** @type {Array<{line: string, revision: string}>} */
   #revisionsTree = [];
+  /** @type {Map<string, string>} */
+  #revisionsMap = new Map();
+  /** @type {Set<string>} */
+  #bookmarksSet = new Set();
 
   /** @param {string} path */
   constructor(path) {
     this.#path = path;
-    this.#changeView =
-        new ChangeView(this.#path, '@', new Map(), new Set(), this);
+    this.#changeView = new ChangeView(this.#path, '@', this);
     this.element = createDiv();
     this.fetch();
+  }
+
+  /** @param {string} revision */
+  async abandon(revision) {
+    await fetchJj('abandon', {cwd: this.#path, r: revision});
+    await this.fetch();
+  }
+
+  /**
+   * @param {string} revision
+   * @param {ChangeDetails|Promise<ChangeDetails>} changeDetails
+   */
+  async bookmark(revision, changeDetails) {
+    const details = await changeDetails;
+    await new BookmarkDialog(this.#bookmarksSet, details.description,
+        this.#path, revision).show();
+    await this.fetch();
+  }
+
+  /**
+   * @param {string} revision
+   * @param {ChangeDetails|Promise<ChangeDetails>} changeDetails
+   */
+  async describe(revision, changeDetails) {
+    const details = await changeDetails;
+    await new DescribeDialog(details.description, this.#path, revision).show();
+    await this.fetch();
+  }
+
+  /** @param {string} revision */
+  async edit(revision) {
+    await fetchJj('edit', {cwd: this.#path, r: revision});
+    await this.fetch();
   }
 
   async fetch() {
@@ -786,10 +867,23 @@ class RepositoryView {
     }
 
     this.#revisionsTree = revisionsTree;
-    this.#changeView =
-        new ChangeView(this.#path, '@', revisionsMap, bookmarksSet, this);
+    this.#revisionsMap = revisionsMap;
+    this.#bookmarksSet = bookmarksSet;
+    this.#changeView = new ChangeView(this.#path, '@', this);
     localStorage.setItem('path', this.#path);
     this.#render();
+  }
+
+  /** @param {string} revision */
+  async new(revision) {
+    await fetchJj('new', {cwd: this.#path, r: revision});
+    await this.fetch();
+  }
+
+  /** @param {string} revision */
+  async rebase(revision) {
+    await new RebaseDialog(this.#revisionsMap, this.#path, revision).show();
+    await this.fetch();
   }
 
   #render() {
@@ -800,7 +894,15 @@ class RepositoryView {
       onchange: () => this.#changeView.setRevision(select.value)
     });
     for (const {line, revision} of this.#revisionsTree) {
-      select.append(createElement('option', {value: revision}, [line]));
+      const option = createElement('option', {value: revision}, [line]);
+      option.addEventListener('contextmenu', event => {
+        option.selected = true;
+        const changeDetails = this.#changeView.setRevision(revision);
+        new PopupMenu(changeDetails, revision, this, event.pageX, event.pageY)
+            .show();
+        event.preventDefault();
+      });
+      select.append(option);
     }
 
     this.element.innerHTML = '';
@@ -819,6 +921,12 @@ class RepositoryView {
             [this.#changeView.attributesElement])
         ]),
         createDiv(this.#changeView.filesElement));
+  }
+
+  /** @param {string} revision */
+  async squash(revision) {
+    await fetchJj('squash', {cwd: this.#path, r: revision});
+    await this.fetch();
   }
 }
 
