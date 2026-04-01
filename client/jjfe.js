@@ -401,6 +401,7 @@ class BookmarkDialog {
     this.#revision = revision;
   }
 
+  /** @returns {Promise<void>} */
   show() {
     return new Promise(resolve => {
       const select = createElement('select');
@@ -408,11 +409,7 @@ class BookmarkDialog {
         select.append(createElement('option', {}, [bookmark]));
       }
       const dialog = createDialog([
-        createTitleBar(`Change: ${this.#revision}`, () => {
-          dialog.close();
-          document.body.removeChild(dialog);
-          resolve(null);
-        }),
+        createTitleBar(`Change: ${this.#revision}`, () => dialog.close()),
         createDiv('Bookmark: ', select),
         createElement('pre', {}, [this.#description]),
         createElement('div', {className: 'actions'}, [
@@ -423,11 +420,13 @@ class BookmarkDialog {
               b: select.value
             });
             dialog.close();
-            document.body.removeChild(dialog);
-            resolve(null);
           })
         ])
       ]);
+      dialog.addEventListener('close', () => {
+        document.body.removeChild(dialog);
+        resolve();
+      }, {once: true});
       document.body.append(dialog);
       dialog.showModal();
     });
@@ -453,6 +452,7 @@ class DescribeDialog {
     this.#revision = revision;
   }
 
+  /** @returns {Promise<void>} */
   show() {
     return new Promise(resolve => {
       const textarea = createElement('textarea', {
@@ -462,11 +462,7 @@ class DescribeDialog {
         value: this.#description
       });
       const dialog = createDialog([
-        createTitleBar(`Change: ${this.#revision}`, () => {
-          dialog.close();
-          document.body.removeChild(dialog);
-          resolve(null);
-        }),
+        createTitleBar(`Change: ${this.#revision}`, () => dialog.close()),
         textarea,
         createElement('div', {className: 'actions'}, [
           createButton('Describe', async () => {
@@ -476,11 +472,13 @@ class DescribeDialog {
               m: textarea.value.trim()
             });
             dialog.close();
-            document.body.removeChild(dialog);
-            resolve(null);
           })
         ])
       ]);
+      dialog.addEventListener('close', () => {
+        document.body.removeChild(dialog);
+        resolve();
+      }, {once: true});
       document.body.append(dialog);
       dialog.showModal();
     });
@@ -506,6 +504,7 @@ class RebaseDialog {
     this.#revision = revision;
   }
 
+  /** @returns {Promise<void>} */
   show() {
     return new Promise(resolve => {
       const sourceSelect = createElement('select');
@@ -520,11 +519,7 @@ class RebaseDialog {
         ontoSelect.append(createElement('option', {value: revision}, [line]));
       });
       const dialog = createDialog([
-        createTitleBar('', () => {
-          dialog.close();
-          document.body.removeChild(dialog);
-          resolve(null);
-        }),
+        createTitleBar('', () => dialog.close()),
         createDiv('Source:'),
         sourceSelect,
         createDiv('Onto:'),
@@ -537,11 +532,13 @@ class RebaseDialog {
               o: ontoSelect.value
             });
             dialog.close();
-            document.body.removeChild(dialog);
-            resolve(null);
           })
         ])
       ]);
+      dialog.addEventListener('close', () => {
+        document.body.removeChild(dialog);
+        resolve();
+      }, {once: true});
       document.body.append(dialog);
       dialog.showModal();
     });
