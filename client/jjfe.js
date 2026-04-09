@@ -545,6 +545,25 @@ class RebaseDialog {
   }
 }
 
+class ChangeDetails {
+  /**
+   * @param {string} attributes
+   * @param {string} description
+   * @param {string[]} files
+   */
+  constructor(attributes, description, files) {
+    /** @type {string} */
+    this.attributes = attributes;
+    /** @type {string} */
+    this.description = description;
+    /** @type {string[]} */
+    this.files = files;
+  }
+
+  static EMPTY = new ChangeDetails(
+      /* attributes= */ '', /* description= */ '', /* files= */ []);
+}
+
 class ChangeView {
   /** @type {string} */
   #path;
@@ -556,8 +575,8 @@ class ChangeView {
   #bookmarksSet;
   /** @type {RepositoryView} */
   #parent;
-  /** @type {string} */
-  #response = '';
+  /** @type {ChangeDetails} */
+  #changeDetails = ChangeDetails.EMPTY;
   /** @type {HTMLDivElement} */
   #attributesDiv;
   /** @type {HTMLInputElement} */
@@ -604,28 +623,20 @@ class ChangeView {
     this.#fetch();
   }
 
+  /** @returns {Promise<ChangeDetails>} */
   async #fetch() {
     const cwd = this.#path;
     const r = this.#revision;
     if (!cwd || !r) {
-      return;
+      return ChangeDetails.EMPTY;
     }
 
-    this.#response = await fetchJj('show', {cwd, r});
-    this.#render();
-  }
-
-  #render() {
-    const cwd = this.#path;
-    const r = this.#revision;
-    if (!cwd || !r) {
-      return;
-    }
+    const response = await fetchJj('show', {cwd, r});
 
     const files = [];
     let attributes = '';
     let description = '';
-    for (const line of this.#response.split('\n')) {
+    for (const line of response.split('\n')) {
       if (line == '    (empty)(no description set)' ||
           line == '    (no description set)') {
         continue;
@@ -641,8 +652,22 @@ class ChangeView {
         files.push(line);
       }
     }
-    description = description.trim();
-    this.#diffsView.setFiles(files);
+
+    const changeDetails =
+        new ChangeDetails(attributes, description.trim(), files);
+    this.#changeDetails = changeDetails;
+    this.#render();
+    return changeDetails;
+  }
+
+  #render() {
+    const cwd = this.#path;
+    const r = this.#revision;
+    if (!cwd || !r) {
+      return;
+    }
+
+    this.#diffsView.setFiles(this.#changeDetails.files);
 
     const moreButtons =
         createElement('div', {style: 'display: none'}, [
@@ -651,8 +676,8 @@ class ChangeView {
             this.#parent.fetch();
           }),
           createButton('Bookmark', async () => {
-            await new BookmarkDialog(this.#bookmarksSet, description, cwd, r)
-                .show();
+            await new BookmarkDialog(this.#bookmarksSet,
+                this.#changeDetails.description, cwd, r).show();
             this.#parent.fetch();
           }),
           createButton('Rebase', async () => {
@@ -676,7 +701,8 @@ class ChangeView {
           createElement('div', {className: 'actions'}, [
             createDiv(
                 createButton('Describe', async () => {
-                  await new DescribeDialog(description, cwd, r).show();
+                  await new DescribeDialog(
+                      this.#changeDetails.description, cwd, r).show();
                   this.#parent.fetch();
                 }),
                 createButton('Edit', async () => {
@@ -697,8 +723,8 @@ class ChangeView {
             moreButtons
           ]),
         ]),
-        createElement('pre', {}, [attributes]),
-        createElement('pre', {}, [description]));
+        createElement('pre', {}, [this.#changeDetails.attributes]),
+        createElement('pre', {}, [this.#changeDetails.description]));
     this.filesElement.innerHTML = '';
     if (this.#searchInput.value) {
       this.filesElement.append(this.#searchView.element);
