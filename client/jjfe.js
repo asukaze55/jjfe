@@ -42,7 +42,7 @@ class DiffView {
   async #fetch() {
     if (this.#expansionState != ExpansionState.COLLAPSED) {
       this.#response = await fetchJj('diff', {
-        cwd: this.#env.cwd,
+        ...this.#env,
         r: this.#revision,
         f: this.#file,
         c: this.#expansionState
@@ -229,7 +229,7 @@ class FileView {
   async #fetch() {
     if (this.#response == '' && this.#expansionState != ExpansionState.COLLAPSED) { 
       this.#response = await fetchJj('file_show', {
-        cwd: this.#env.cwd,
+        ...this.#env,
         r: this.#revision,
         f: this.#file
       });
@@ -323,7 +323,7 @@ class SearchView {
 
   async #fetch() {
     const response = await fetchJj('file_search', {
-      cwd: this.#env.cwd,
+      ...this.#env,
       r: this.#revision,
       p: '*' + this.#string + '*'
     });
@@ -417,7 +417,7 @@ class BookmarkDialog {
         createElement('div', {className: 'actions'}, [
           createButton('Move', async () => {
             await fetchJj('bookmark_move', {
-              cwd: this.#env.cwd,
+              ...this.#env,
               r: this.#revision,
               b: select.value
             });
@@ -469,7 +469,7 @@ class DescribeDialog {
         createElement('div', {className: 'actions'}, [
           createButton('Describe', async () => {
             await fetchJj('describe', {
-              cwd: this.#env.cwd,
+              ...this.#env,
               r: this.#revision,
               m: textarea.value.trim()
             });
@@ -529,7 +529,7 @@ class RebaseDialog {
         createElement('div', {className: 'actions'}, [
           createButton('Rebase', async () => {
             await fetchJj('rebase', {
-              cwd: this.#env.cwd,
+              ...this.#env,
               s: sourceSelect.value,
               o: ontoSelect.value
             });
@@ -625,7 +625,7 @@ class ChangeView {
       return ChangeDetails.EMPTY;
     }
 
-    const response = await fetchJj('show', {cwd, r});
+    const response = await fetchJj('show', {...this.#env, r});
 
     const files = [];
     let attributes = '';
@@ -814,7 +814,7 @@ class RepositoryView {
 
   /** @param {string} revision */
   async abandon(revision) {
-    await fetchJj('abandon', {cwd: this.#env.cwd, r: revision});
+    await fetchJj('abandon', {...this.#env, r: revision});
     await this.fetch();
   }
 
@@ -841,12 +841,12 @@ class RepositoryView {
 
   /** @param {string} revision */
   async edit(revision) {
-    await fetchJj('edit', {cwd: this.#env.cwd, r: revision});
+    await fetchJj('edit', {...this.#env, r: revision});
     await this.fetch();
   }
 
   async fetch() {
-    const response = await fetchJj('log', {cwd: this.#env.cwd});
+    const response = await fetchJj('log', this.#env);
 
     const revisionsTree = [];
     const revisionsMap = new Map();
@@ -878,7 +878,7 @@ class RepositoryView {
 
   /** @param {string} revision */
   async new(revision) {
-    await fetchJj('new', {cwd: this.#env.cwd, r: revision});
+    await fetchJj('new', {...this.#env, r: revision});
     await this.fetch();
   }
 
@@ -927,8 +927,42 @@ class RepositoryView {
 
   /** @param {string} revision */
   async squash(revision) {
-    await fetchJj('squash', {cwd: this.#env.cwd, r: revision});
+    await fetchJj('squash', {...this.#env, r: revision});
     await this.fetch();
+  }
+}
+
+class SettingsDialog {
+  /** @type {Environment} */
+  #env;
+
+  /** @param {Environment} env */
+  constructor(env) {
+    this.#env = env;
+  }
+
+  /** @returns {Promise<void>} */
+  show() {
+    return new Promise(resolve => {
+      const input = createElement('input', {value: this.#env.jj});
+      const dialog = createDialog([
+        createTitleBar('Settings', () => dialog.close()),
+        createDiv('Path to jj: ', input),
+        createElement('div', {className: 'actions'}, [
+          createButton('Done', async () => {
+            this.#env.jj = input.value || 'jj';
+            localStorage.setItem('jj', this.#env.jj);
+            dialog.close();
+          })
+        ])
+      ]);
+      dialog.addEventListener('close', () => {
+        document.body.removeChild(dialog);
+        resolve();
+      }, {once: true});
+      document.body.append(dialog);
+      dialog.showModal();
+    });
   }
 }
 
@@ -952,7 +986,9 @@ class JjfeView {
     });
     this.element = createDiv(createElement('div', {style: 'display: flex;'}, [
       createElement('h1', {}, ['JJFE']),
-      this.#input
+      this.#input,
+      createButton('🛠️',
+          () => new SettingsDialog(this.#env).show(), {style: 'margin: 8px 0'})
     ]));
     this.#render();
   }
@@ -970,8 +1006,9 @@ class JjfeView {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+  const jj = localStorage.getItem('jj') || 'jj'; 
   const cwd = location.hash.substring(1) || localStorage.getItem('path') || '';
-  document.getElementById('jjfe')?.append(new JjfeView({jj: 'jj', cwd}).element);
+  document.getElementById('jjfe')?.append(new JjfeView({jj, cwd}).element);
 });
 
 });

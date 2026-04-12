@@ -92,7 +92,7 @@ function runJj(request, response) {
         const r = validateRevision(json.r);
         args = ['squash', '-r', r];
       }
-      const result = spawnSync('jj', args, options);
+      const result = spawnSync(json.jj || 'jj', args, options);
       if (result.error) {
         const e = `${result.error || ''}\n${result.stderr || ''}\n`;
         console.error(e);

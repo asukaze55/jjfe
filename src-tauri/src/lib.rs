@@ -4,8 +4,8 @@ use std::os::windows::process::CommandExt;
 use std::process::{Command, Stdio};
 use tauri::Result;
 
-fn shell_exec_with_stdin(cwd: &str, args: &[&str], stdin_str: &str) -> Result<String> {
-    let mut child = Command::new("jj")
+fn shell_exec_with_stdin(jj: &str, cwd: &str, args: &[&str], stdin_str: &str) -> Result<String> {
+    let mut child = Command::new(jj)
         .creation_flags(0x08000000 /* CREATE_NO_WINDOW */)
         .current_dir(cwd)
         .args(args)
@@ -32,8 +32,8 @@ fn shell_exec_with_stdin(cwd: &str, args: &[&str], stdin_str: &str) -> Result<St
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
 
-fn shell_exec(cwd: &str, args: &[&str]) -> Result<String> {
-    shell_exec_with_stdin(cwd, args, "")
+fn shell_exec(jj: &str, cwd: &str, args: &[&str]) -> Result<String> {
+    shell_exec_with_stdin(jj, cwd, args, "")
 }
 
 fn validate<'a>(input: &'a str, spec: &str) -> &'a str {
@@ -50,13 +50,14 @@ fn validate_revision<'a>(input: &'a str) -> &'a str {
 }
 
 #[tauri::command]
-fn abandon(cwd: &str, r: &str) -> Result<String> {
-    shell_exec(cwd, &["abandon", "-r", validate_revision(r)])
+fn abandon(jj: &str, cwd: &str, r: &str) -> Result<String> {
+    shell_exec(jj, cwd, &["abandon", "-r", validate_revision(r)])
 }
 
 #[tauri::command]
-fn bookmark_move(cwd: &str, r: &str, b: &str) -> Result<String> {
+fn bookmark_move(jj: &str, cwd: &str, r: &str, b: &str) -> Result<String> {
     shell_exec(
+        jj,
         cwd,
         &[
             "bookmark",
@@ -69,13 +70,19 @@ fn bookmark_move(cwd: &str, r: &str, b: &str) -> Result<String> {
 }
 
 #[tauri::command]
-fn describe(cwd: &str, r: &str, m: &str) -> Result<String> {
-    shell_exec_with_stdin(cwd, &["describe", "-r", validate_revision(r), "--stdin"], m)
+fn describe(jj: &str, cwd: &str, r: &str, m: &str) -> Result<String> {
+    shell_exec_with_stdin(
+        jj,
+        cwd,
+        &["describe", "-r", validate_revision(r), "--stdin"],
+        m,
+    )
 }
 
 #[tauri::command]
-fn diff(cwd: &str, r: &str, c: i32, f: &str) -> Result<String> {
+fn diff(jj: &str, cwd: &str, r: &str, c: i32, f: &str) -> Result<String> {
     shell_exec(
+        jj,
         cwd,
         &[
             "diff",
@@ -90,13 +97,14 @@ fn diff(cwd: &str, r: &str, c: i32, f: &str) -> Result<String> {
 }
 
 #[tauri::command]
-fn edit(cwd: &str, r: &str) -> Result<String> {
-    shell_exec(cwd, &["edit", "-r", validate_revision(r)])
+fn edit(jj: &str, cwd: &str, r: &str) -> Result<String> {
+    shell_exec(jj, cwd, &["edit", "-r", validate_revision(r)])
 }
 
 #[tauri::command]
-fn file_search(cwd: &str, r: &str, p: &str) -> Result<String> {
+fn file_search(jj: &str, cwd: &str, r: &str, p: &str) -> Result<String> {
     shell_exec(
+        jj,
         cwd,
         &[
             "file",
@@ -110,8 +118,9 @@ fn file_search(cwd: &str, r: &str, p: &str) -> Result<String> {
 }
 
 #[tauri::command]
-fn file_show(cwd: &str, r: &str, f: &str) -> Result<String> {
+fn file_show(jj: &str, cwd: &str, r: &str, f: &str) -> Result<String> {
     shell_exec(
+        jj,
         cwd,
         &[
             "file",
@@ -124,8 +133,9 @@ fn file_show(cwd: &str, r: &str, f: &str) -> Result<String> {
 }
 
 #[tauri::command]
-fn log(cwd: &str) -> Result<String> {
+fn log(jj: &str, cwd: &str) -> Result<String> {
     shell_exec(
+        jj,
         cwd,
         &[
             "log",
@@ -139,13 +149,14 @@ fn log(cwd: &str) -> Result<String> {
 }
 
 #[tauri::command]
-fn new(cwd: &str, r: &str) -> Result<String> {
-    shell_exec(cwd, &["new", "-r", validate_revision(r)])
+fn new(jj: &str, cwd: &str, r: &str) -> Result<String> {
+    shell_exec(jj, cwd, &["new", "-r", validate_revision(r)])
 }
 
 #[tauri::command]
-fn rebase(cwd: &str, s: &str, o: &str) -> Result<String> {
+fn rebase(jj: &str, cwd: &str, s: &str, o: &str) -> Result<String> {
     shell_exec(
+        jj,
         cwd,
         &[
             "rebase",
@@ -158,13 +169,17 @@ fn rebase(cwd: &str, s: &str, o: &str) -> Result<String> {
 }
 
 #[tauri::command]
-fn show(cwd: &str, r: &str) -> Result<String> {
-    shell_exec(cwd, &["show", "--name-only", "-r", validate_revision(r)])
+fn show(jj: &str, cwd: &str, r: &str) -> Result<String> {
+    shell_exec(
+        jj,
+        cwd,
+        &["show", "--name-only", "-r", validate_revision(r)],
+    )
 }
 
 #[tauri::command]
-fn squash(cwd: &str, r: &str) -> Result<String> {
-    shell_exec(cwd, &["squash", "-r", validate_revision(r)])
+fn squash(jj: &str, cwd: &str, r: &str) -> Result<String> {
+    shell_exec(jj, cwd, &["squash", "-r", validate_revision(r)])
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
