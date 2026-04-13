@@ -5,24 +5,13 @@ use std::process::{Command, Stdio};
 use tauri::Result;
 
 fn shell_exec_with_stdin(cwd: &str, args: &[&str], stdin_str: &str) -> Result<String> {
-    let mut child = if cfg!(target_os = "windows") {
-        Command::new("cmd")
-            .arg("/C")
-            .creation_flags(0x08000000 /* CREATE_NO_WINDOW */)
-            .current_dir(cwd)
-            .args(args)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .spawn()?
-    } else {
-        Command::new("sh")
-            .arg("-c")
-            .current_dir(cwd)
-            .args(args)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .spawn()?
-    };
+    let mut child = Command::new("jj")
+        .creation_flags(0x08000000 /* CREATE_NO_WINDOW */)
+        .current_dir(cwd)
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()?;
 
     let mut stdin = child
         .stdin
@@ -62,7 +51,7 @@ fn validate_revision<'a>(input: &'a str) -> &'a str {
 
 #[tauri::command]
 fn abandon(cwd: &str, r: &str) -> Result<String> {
-    shell_exec(cwd, &["jj", "abandon", "-r", validate_revision(r)])
+    shell_exec(cwd, &["abandon", "-r", validate_revision(r)])
 }
 
 #[tauri::command]
@@ -70,7 +59,6 @@ fn bookmark_move(cwd: &str, r: &str, b: &str) -> Result<String> {
     shell_exec(
         cwd,
         &[
-            "jj",
             "bookmark",
             "move",
             validate(b, r"^[\w\d\.]+$"),
@@ -82,11 +70,7 @@ fn bookmark_move(cwd: &str, r: &str, b: &str) -> Result<String> {
 
 #[tauri::command]
 fn describe(cwd: &str, r: &str, m: &str) -> Result<String> {
-    shell_exec_with_stdin(
-        cwd,
-        &["jj", "describe", "-r", validate_revision(r), "--stdin"],
-        m,
-    )
+    shell_exec_with_stdin(cwd, &["describe", "-r", validate_revision(r), "--stdin"], m)
 }
 
 #[tauri::command]
@@ -94,7 +78,6 @@ fn diff(cwd: &str, r: &str, c: i32, f: &str) -> Result<String> {
     shell_exec(
         cwd,
         &[
-            "jj",
             "diff",
             "--git",
             "-r",
@@ -108,7 +91,7 @@ fn diff(cwd: &str, r: &str, c: i32, f: &str) -> Result<String> {
 
 #[tauri::command]
 fn edit(cwd: &str, r: &str) -> Result<String> {
-    shell_exec(cwd, &["jj", "edit", "-r", validate_revision(r)])
+    shell_exec(cwd, &["edit", "-r", validate_revision(r)])
 }
 
 #[tauri::command]
@@ -116,7 +99,6 @@ fn file_search(cwd: &str, r: &str, p: &str) -> Result<String> {
     shell_exec(
         cwd,
         &[
-            "jj",
             "file",
             "search",
             "-r",
@@ -132,7 +114,6 @@ fn file_show(cwd: &str, r: &str, f: &str) -> Result<String> {
     shell_exec(
         cwd,
         &[
-            "jj",
             "file",
             "show",
             "-r",
@@ -147,7 +128,6 @@ fn log(cwd: &str) -> Result<String> {
     shell_exec(
         cwd,
         &[
-            "jj",
             "log",
             "-r",
             "ancestors(visible_heads(), 20)",
@@ -160,7 +140,7 @@ fn log(cwd: &str) -> Result<String> {
 
 #[tauri::command]
 fn new(cwd: &str, r: &str) -> Result<String> {
-    shell_exec(cwd, &["jj", "new", "-r", validate_revision(r)])
+    shell_exec(cwd, &["new", "-r", validate_revision(r)])
 }
 
 #[tauri::command]
@@ -168,7 +148,6 @@ fn rebase(cwd: &str, s: &str, o: &str) -> Result<String> {
     shell_exec(
         cwd,
         &[
-            "jj",
             "rebase",
             "-s",
             validate_revision(s),
@@ -180,15 +159,12 @@ fn rebase(cwd: &str, s: &str, o: &str) -> Result<String> {
 
 #[tauri::command]
 fn show(cwd: &str, r: &str) -> Result<String> {
-    shell_exec(
-        cwd,
-        &["jj", "show", "--name-only", "-r", validate_revision(r)],
-    )
+    shell_exec(cwd, &["show", "--name-only", "-r", validate_revision(r)])
 }
 
 #[tauri::command]
 fn squash(cwd: &str, r: &str) -> Result<String> {
-    shell_exec(cwd, &["jj", "squash", "-r", validate_revision(r)])
+    shell_exec(cwd, &["squash", "-r", validate_revision(r)])
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
