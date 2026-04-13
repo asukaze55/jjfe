@@ -2,6 +2,8 @@ net.asukaze.module((module, require) => {
 const { createButton, createDialog, createDiv, createElement, createTitleBar } = require('./asukaze_dom.js');
 const { fetchJj } = require('./fetch_jj.js');
 
+/** @typedef {{jj: string, cwd: string}} Environment */
+
 /** @enum {number} */
 const ExpansionState = {
   COLLAPSED: -1,
@@ -11,8 +13,8 @@ const ExpansionState = {
 };
 
 class DiffView {
-  /** @type {string} */
-  #path;
+  /** @type {Environment} */
+  #env;
   /** @type {string} */
   #revision;
   /** @type {string} */
@@ -23,13 +25,13 @@ class DiffView {
   #response = '';
 
   /**
-   * @param {string} path
+   * @param {Environment} env
    * @param {string} revision
    * @param {string} file
    * @param {ExpansionState} expansionState
    */
-  constructor(path, revision, file, expansionState) {
-    this.#path = path;
+  constructor(env, revision, file, expansionState) {
+    this.#env = env;
     this.#revision = revision;
     this.#file = file;
     this.#expansionState = expansionState;
@@ -40,7 +42,7 @@ class DiffView {
   async #fetch() {
     if (this.#expansionState != ExpansionState.COLLAPSED) {
       this.#response = await fetchJj('diff', {
-        cwd: this.#path,
+        cwd: this.#env.cwd,
         r: this.#revision,
         f: this.#file,
         c: this.#expansionState
@@ -141,19 +143,19 @@ class DiffView {
 }
 
 class DiffsView {
-  /** @type {string} */
-  #path;
+  /** @type {Environment} */
+  #env;
   /** @type {string} */
   #revision;
   /** @type {DiffView[]} */
   #diffViews = [];
 
   /**
-   * @param {string} path
+   * @param {Environment} env
    * @param {string} revision
    */
-  constructor(path, revision) {
-    this.#path = path;
+  constructor(env, revision) {
+    this.#env = env;
     this.#revision = revision;
     this.element = createDiv();
     this.#render();
@@ -193,14 +195,14 @@ class DiffsView {
     const expansionState =
         (files.length > 1) ? ExpansionState.COLLAPSED : ExpansionState.DIFF;
     this.#diffViews = files.map(
-        f => new DiffView(this.#path, this.#revision, f, expansionState));
+        f => new DiffView(this.#env, this.#revision, f, expansionState));
     this.#render();
   }
 }
 
 class FileView {
-  /** @type {string} */
-  #path;
+  /** @type {Environment} */
+  #env;
   /** @type {string} */
   #revision;
   /** @type {string} */
@@ -213,12 +215,12 @@ class FileView {
   #response = '';
 
   /**
-   * @param {string} path
+   * @param {Environment} env
    * @param {string} revision
    * @param {string} file
    */
-  constructor(path, revision, file) {
-    this.#path = path;
+  constructor(env, revision, file) {
+    this.#env = env;
     this.#revision = revision;
     this.#file = file;
     this.element = createDiv();
@@ -227,7 +229,7 @@ class FileView {
   async #fetch() {
     if (this.#response == '' && this.#expansionState != ExpansionState.COLLAPSED) { 
       this.#response = await fetchJj('file_show', {
-        cwd: this.#path,
+        cwd: this.#env.cwd,
         r: this.#revision,
         f: this.#file
       });
@@ -297,8 +299,8 @@ class FileView {
 }
 
 class SearchView {
-  /** @type {string} */
-  #path;
+  /** @type {Environment} */
+  #env;
   /** @type {string} */
   #revision;
   /** @type {string} */
@@ -309,11 +311,11 @@ class SearchView {
   #fileViews = new Map();
 
   /**
-   * @param {string} path
+   * @param {Environment} env
    * @param {string} revision
    */
-  constructor(path, revision) {
-    this.#path = path;
+  constructor(env, revision) {
+    this.#env = env;
     this.#revision = revision;
     this.element = createDiv();
     this.#render();
@@ -321,7 +323,7 @@ class SearchView {
 
   async #fetch() {
     const response = await fetchJj('file_search', {
-      cwd: this.#path,
+      cwd: this.#env.cwd,
       r: this.#revision,
       p: '*' + this.#string + '*'
     });
@@ -337,7 +339,7 @@ class SearchView {
     for (const file of this.#files) {
       let view = this.#fileViews.get(file);
       if (!view) {
-        view = new FileView(this.#path, this.#revision, file);
+        view = new FileView(this.#env, this.#revision, file);
         this.#fileViews.set(file, view);
       }
       view.setContext(this.#string,
@@ -383,21 +385,21 @@ class BookmarkDialog {
   #bookmarksSet;
   /** @type {string} */
   #description;
-  /** @type {string} */
-  #path;
+  /** @type {Environment} */
+  #env;
   /** @type {string} */
   #revision;
 
   /**
    * @param {Set<string>} bookmarksSet
    * @param {string} description
-   * @param {string} path
+   * @param {Environment} env
    * @param {string} revision
    */
-  constructor(bookmarksSet, description, path, revision) {
+  constructor(bookmarksSet, description, env, revision) {
     this.#bookmarksSet = bookmarksSet;
     this.#description = description;
-    this.#path = path;
+    this.#env = env;
     this.#revision = revision;
   }
 
@@ -415,7 +417,7 @@ class BookmarkDialog {
         createElement('div', {className: 'actions'}, [
           createButton('Move', async () => {
             await fetchJj('bookmark_move', {
-              cwd: this.#path,
+              cwd: this.#env.cwd,
               r: this.#revision,
               b: select.value
             });
@@ -436,19 +438,19 @@ class BookmarkDialog {
 class DescribeDialog {
   /** @type {string} */
   #description;
-  /** @type {string} */
-  #path;
+  /** @type {Environment} */
+  #env;
   /** @type {string} */
   #revision;
 
   /**
    * @param {string} description
-   * @param {string} path
+   * @param {Environment} env
    * @param {string} revision
    */
-  constructor(description, path, revision) {
+  constructor(description, env, revision) {
     this.#description = description;
-    this.#path = path;
+    this.#env = env;
     this.#revision = revision;
   }
 
@@ -467,7 +469,7 @@ class DescribeDialog {
         createElement('div', {className: 'actions'}, [
           createButton('Describe', async () => {
             await fetchJj('describe', {
-              cwd: this.#path,
+              cwd: this.#env.cwd,
               r: this.#revision,
               m: textarea.value.trim()
             });
@@ -488,19 +490,19 @@ class DescribeDialog {
 class RebaseDialog {
   /** @type {Map<string, string>} */
   #revisionsMap;
-  /** @type {string} */
-  #path;
+  /** @type {Environment} */
+  #env;
   /** @type {string} */
   #revision;
 
   /**
    * @param {Map<string, string>} revisionsMap
-   * @param {string} path
+   * @param {Environment} env
    * @param {string} revision
    */
-  constructor(revisionsMap, path, revision) {
+  constructor(revisionsMap, env, revision) {
     this.#revisionsMap = revisionsMap;
-    this.#path = path;
+    this.#env = env;
     this.#revision = revision;
   }
 
@@ -527,7 +529,7 @@ class RebaseDialog {
         createElement('div', {className: 'actions'}, [
           createButton('Rebase', async () => {
             await fetchJj('rebase', {
-              cwd: this.#path,
+              cwd: this.#env.cwd,
               s: sourceSelect.value,
               o: ontoSelect.value
             });
@@ -565,8 +567,8 @@ class ChangeDetails {
 }
 
 class ChangeView {
-  /** @type {string} */
-  #path;
+  /** @type {Environment} */
+  #env;
   /** @type {string} */
   #revision;
   /** @type {RepositoryView} */
@@ -583,16 +585,16 @@ class ChangeView {
   #searchView;
 
   /**
-   * @param {string} path
+   * @param {Environment} env
    * @param {string} revision
    * @param {RepositoryView} parent
    */
-  constructor(path, revision, parent) {
-    this.#path = path;
+  constructor(env, revision, parent) {
+    this.#env = env;
     this.#revision = revision;
     this.#parent = parent;
-    this.#diffsView = new DiffsView(path, revision);
-    this.#searchView = new SearchView(path, revision);
+    this.#diffsView = new DiffsView(env, revision);
+    this.#searchView = new SearchView(env, revision);
     this.#attributesDiv = createElement('div', {style: 'flex: 1'});
     this.#searchInput = createElement('input', {
       name: 'q',
@@ -617,7 +619,7 @@ class ChangeView {
 
   /** @returns {Promise<ChangeDetails>} */
   async #fetch() {
-    const cwd = this.#path;
+    const cwd = this.#env.cwd;
     const r = this.#revision;
     if (!cwd || !r) {
       return ChangeDetails.EMPTY;
@@ -653,7 +655,7 @@ class ChangeView {
   }
 
   #render() {
-    const cwd = this.#path;
+    const cwd = this.#env.cwd;
     const r = this.#revision;
     if (!cwd || !r) {
       return;
@@ -712,8 +714,8 @@ class ChangeView {
     }
     this.#revision = revision;
     this.#searchInput.value = '';
-    this.#diffsView = new DiffsView(this.#path, revision);
-    this.#searchView = new SearchView(this.#path, revision);
+    this.#diffsView = new DiffsView(this.#env, revision);
+    this.#searchView = new SearchView(this.#env, revision);
     return this.#fetch();
   }
 }
@@ -791,8 +793,8 @@ class PopupMenu {
 }
 
 class RepositoryView {
-  /** @type {string} */
-  #path;
+  /** @type {Environment} */
+  #env;
   /** @type {ChangeView} */
   #changeView;
   /** @type {Array<{line: string, revision: string}>} */
@@ -802,17 +804,17 @@ class RepositoryView {
   /** @type {Set<string>} */
   #bookmarksSet = new Set();
 
-  /** @param {string} path */
-  constructor(path) {
-    this.#path = path;
-    this.#changeView = new ChangeView(this.#path, '@', this);
+  /** @param {Environment} env */
+  constructor(env) {
+    this.#env = env;
+    this.#changeView = new ChangeView(this.#env, '@', this);
     this.element = createDiv();
     this.fetch();
   }
 
   /** @param {string} revision */
   async abandon(revision) {
-    await fetchJj('abandon', {cwd: this.#path, r: revision});
+    await fetchJj('abandon', {cwd: this.#env.cwd, r: revision});
     await this.fetch();
   }
 
@@ -823,7 +825,7 @@ class RepositoryView {
   async bookmark(revision, changeDetails) {
     const details = await changeDetails;
     await new BookmarkDialog(this.#bookmarksSet, details.description,
-        this.#path, revision).show();
+        this.#env, revision).show();
     await this.fetch();
   }
 
@@ -833,18 +835,18 @@ class RepositoryView {
    */
   async describe(revision, changeDetails) {
     const details = await changeDetails;
-    await new DescribeDialog(details.description, this.#path, revision).show();
+    await new DescribeDialog(details.description, this.#env, revision).show();
     await this.fetch();
   }
 
   /** @param {string} revision */
   async edit(revision) {
-    await fetchJj('edit', {cwd: this.#path, r: revision});
+    await fetchJj('edit', {cwd: this.#env.cwd, r: revision});
     await this.fetch();
   }
 
   async fetch() {
-    const response = await fetchJj('log', {cwd: this.#path});
+    const response = await fetchJj('log', {cwd: this.#env.cwd});
 
     const revisionsTree = [];
     const revisionsMap = new Map();
@@ -869,20 +871,20 @@ class RepositoryView {
     this.#revisionsTree = revisionsTree;
     this.#revisionsMap = revisionsMap;
     this.#bookmarksSet = bookmarksSet;
-    this.#changeView = new ChangeView(this.#path, '@', this);
-    localStorage.setItem('path', this.#path);
+    this.#changeView = new ChangeView(this.#env, '@', this);
+    localStorage.setItem('path', this.#env.cwd);
     this.#render();
   }
 
   /** @param {string} revision */
   async new(revision) {
-    await fetchJj('new', {cwd: this.#path, r: revision});
+    await fetchJj('new', {cwd: this.#env.cwd, r: revision});
     await this.fetch();
   }
 
   /** @param {string} revision */
   async rebase(revision) {
-    await new RebaseDialog(this.#revisionsMap, this.#path, revision).show();
+    await new RebaseDialog(this.#revisionsMap, this.#env, revision).show();
     await this.fetch();
   }
 
@@ -925,26 +927,26 @@ class RepositoryView {
 
   /** @param {string} revision */
   async squash(revision) {
-    await fetchJj('squash', {cwd: this.#path, r: revision});
+    await fetchJj('squash', {cwd: this.#env.cwd, r: revision});
     await this.fetch();
   }
 }
 
 class JjfeView {
-  /** @type {string} */
-  #path;
+  /** @type {Environment} */
+  #env;
   /** @type {HTMLInputElement} */
   #input;
 
-  /** @param {string} path */
-  constructor(path) {
-    this.#path = path;
+  /** @param {Environment} env */
+  constructor(env) {
+    this.#env = env;
     this.#input = createElement('input', {
-      name: 'path',
+      name: 'env',
       style: 'flex: auto; margin: 8px;',
       onchange: () => {
-        this.#path = this.#input.value;
-        location.hash = '#' + this.#path;
+        this.#env.cwd = this.#input.value;
+        location.hash = '#' + this.#env.cwd;
         this.#render();
       }
     });
@@ -956,20 +958,20 @@ class JjfeView {
   }
 
   #render() {
-    this.#input.value = this.#path;
+    this.#input.value = this.#env.cwd;
     while (this.element.children.length > 1) {
       this.element.lastChild?.remove();
     }
-    if (!this.#path) {
+    if (!this.#env.cwd) {
       return;
     }
-    this.element.append(new RepositoryView(this.#path).element);
+    this.element.append(new RepositoryView(this.#env).element);
   }
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  const path = location.hash.substring(1) || localStorage.getItem('path') || '';
-  document.getElementById('jjfe')?.append(new JjfeView(path).element);
+  const cwd = location.hash.substring(1) || localStorage.getItem('path') || '';
+  document.getElementById('jjfe')?.append(new JjfeView({jj: 'jj', cwd}).element);
 });
 
 });
