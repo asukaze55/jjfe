@@ -493,17 +493,21 @@ class RebaseDialog {
   /** @type {Environment} */
   #env;
   /** @type {string} */
-  #revision;
+  #sourceRevision;
+  /** @type {string} */
+  #ontoRevision;
 
   /**
    * @param {Map<string, string>} revisionsMap
    * @param {Environment} env
-   * @param {string} revision
+   * @param {string} sourceRevision
+   * @param {string=} ontoRevision
    */
-  constructor(revisionsMap, env, revision) {
+  constructor(revisionsMap, env, sourceRevision, ontoRevision = '@') {
     this.#revisionsMap = revisionsMap;
     this.#env = env;
-    this.#revision = revision;
+    this.#sourceRevision = sourceRevision;
+    this.#ontoRevision = ontoRevision;
   }
 
   /** @returns {Promise<void>} */
@@ -515,10 +519,13 @@ class RebaseDialog {
       ontoSelect.append(createElement('option', {value: '@'}, ['@']));
       this.#revisionsMap.forEach((line, revision) => {
         sourceSelect.append(createElement('option', {
-          selected: (revision == this.#revision),
+          selected: (revision == this.#sourceRevision),
           value: revision
         }, [line]));
-        ontoSelect.append(createElement('option', {value: revision}, [line]));
+        ontoSelect.append(createElement('option', {
+          selected: (revision == this.#ontoRevision),
+          value: revision
+        }, [line]));
       });
       const dialog = createDialog([
         createTitleBar('', () => dialog.close()),
@@ -895,6 +902,46 @@ class RepositoryView {
       size: 10,
       onchange: () => this.#changeView.setRevision(select.value)
     });
+    select.addEventListener('mousedown', mouseDownEvent => {
+      if (mouseDownEvent.button != 0) {
+        return;
+      }
+      const revision =
+          /** @type {HTMLOptionElement?} */(mouseDownEvent.target)?.value;
+      if (!revision) {
+        return;
+      }
+      /** @type {HTMLDivElement?} */
+      let tip = null;
+      /** @type {(event: MouseEvent) => void} */
+      const onMouseMove = event => {
+        if (!tip) {
+          tip = createElement('div', {className: 'tip'}, [revision]);
+          document.body.append(tip);
+        }
+        tip.style.left = (event.pageX + 8) + 'px';
+        tip.style.top = event.pageY + 'px';
+        select.style.cursor = 'grabbing';
+      }
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', async event => {
+        document.removeEventListener('mousemove', onMouseMove);
+        select.style.cursor = 'auto';
+        if (!tip) {
+          return;
+        }
+        document.body.removeChild(tip);
+        const dropRevision = document
+            .elementFromPoint(event.clientX, event.clientY)
+            ?.closest('option')?.value;
+        if (dropRevision && revision != dropRevision) {
+          await new RebaseDialog(
+              this.#revisionsMap, this.#env, revision, dropRevision).show();
+          await this.fetch();
+        }
+      }, {once: true});
+    });
+
     for (const {line, revision} of this.#revisionsTree) {
       const option = createElement('option', {value: revision}, [line]);
       option.addEventListener('contextmenu', event => {
