@@ -671,34 +671,31 @@ class ChangeView {
     this.#diffsView.setFiles(this.#changeDetails.files);
 
     const moreButtons =
-        createElement('div', {style: 'display: none'}, [
-          createButton('Abandon', () => this.#parent.abandon(r)),
-          createButton('Bookmark',
-              () => this.#parent.bookmark(r, this.#changeDetails)),
-          createButton('Rebase', () => this.#parent.rebase(r)),
-        ]);
-    const moreButton = createButton('v', () => {
-      if (moreButtons.style.display == 'none') {
-        moreButtons.style.display = '';
-        moreButton.innerText = '^';
-      } else {
-        moreButtons.style.display = 'none';
-        moreButton.innerText = 'v';
-      }
-    });
+        new PopupMenu(createElement('dialog', {className: 'menu'}, [
+          createElement('ul', {}, [
+            createElement('li', {
+              onclick: () => this.#parent.bookmark(r, this.#changeDetails)
+            }, ['Bookmark']),
+            createElement('li', {
+              onclick: () => this.#parent.rebase(r)
+            }, ['Rebase']),
+            createElement('li', {
+              onclick: () => this.#parent.abandon(r)
+            }, ['Abandon'])
+          ])
+        ]));
+
     this.#attributesDiv.innerHTML = '';
     this.#attributesDiv.append(
         createElement('div', {className: 'section-header'}, [
           createElement('span', {className: 'header-label'}, [`Change: ${r}`]),
           createElement('div', {className: 'actions'}, [
-            createDiv(
-                createButton('Describe',
-                    () => this.#parent.describe(r, this.#changeDetails)),
-                createButton('Edit', () => this.#parent.edit(r)),
-                createButton('New', () => this.#parent.new(r)),
-                createButton('Squash', () => this.#parent.squash(r)),
-                moreButton),
-            moreButtons
+            createButton('Describe',
+                () => this.#parent.describe(r, this.#changeDetails)),
+            createButton('Edit', () => this.#parent.edit(r)),
+            createButton('New', () => this.#parent.new(r)),
+            createButton('Squash', () => this.#parent.squash(r)),
+            moreButtons.createMoreButton(),
           ]),
         ]),
         createElement('pre', {}, [this.#changeDetails.attributes]),
@@ -736,12 +733,28 @@ class PopupMenu {
     this.#dialog = dialog;
   }
 
+  /** @returns {HTMLSpanElement} */
+  createMoreButton() {
+    const button = createElement('button', {
+      ariaLabel: 'More options',
+      className: 'icon-button',
+      type: 'button'
+    }, ['︙']);
+    button.addEventListener('click', event => {
+      if (!this.#dialog.open) {
+        const rect = button.getBoundingClientRect();
+        this.show({right: rect.right+ scrollX, top: rect.bottom + scrollY});
+        event.stopPropagation();
+      }
+    });
+    return button;
+  }
+
   /**
-   * @param {number} x
-   * @param {number} y
+   * @param {{left?: number, right?: number, top?: number}} position
    * @returns {Promise<void>}
    */
-  show(x, y) {
+  show(position) {
     return new Promise(resolve => {
       const dialog = this.#dialog;
       const closeDialog = () => dialog.close();
@@ -750,11 +763,19 @@ class PopupMenu {
         document.removeEventListener('click', closeDialog);
         resolve();
       }, {once: true});
-      dialog.style.left = x + 'px';
-      dialog.style.top = y + 'px';
       document.body.append(dialog);
       document.addEventListener('click', closeDialog);
+      if (position.left != null) {
+        dialog.style.left = position.left + 'px';
+      }
+      if (position.top != null) {
+        dialog.style.top = position.top + 'px';
+      }
       dialog.show();
+      if (position.right != null) {
+        dialog.style.left =
+            (position.right - dialog.getBoundingClientRect().width) + 'px';
+      }
     });
   }
 }
@@ -910,28 +931,28 @@ class RepositoryView {
         new PopupMenu(createElement('dialog', {className: 'menu'}, [
           createElement('ul', {}, [
             createElement('li', {
+              onclick: () => this.describe(revision, changeDetails)
+            }, ['Describe']),
+            createElement('li', {
               onclick: () => this.edit(revision)
             }, ['Edit']),
             createElement('li', {
               onclick: () => this.new(revision)
             }, ['New']),
             createElement('li', {
-              onclick: () => this.describe(revision, changeDetails)
-            }, ['Describe']),
-            createElement('li', {
               onclick: () => this.squash(revision)
             }, ['Squash']),
-            createElement('li', {
-              onclick: () => this.rebase(revision)
-            }, ['Rebase']),
             createElement('li', {
               onclick: () => this.bookmark(revision, changeDetails)
             }, ['Bookmark']),
             createElement('li', {
+              onclick: () => this.rebase(revision)
+            }, ['Rebase']),
+            createElement('li', {
               onclick: () => this.abandon(revision)
             }, ['Abandon'])
           ])
-        ])).show(event.pageX, event.pageY);
+        ])).show({left: event.pageX, top: event.pageY});
         event.preventDefault();
       });
       select.append(option);
