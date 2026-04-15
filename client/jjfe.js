@@ -750,7 +750,7 @@ class PopupMenu {
   /** @returns {Promise<void>} */
   show() {
     return new Promise(resolve => {
-      const dialog = createDialog([
+      const dialog = createElement('dialog', {className: 'menu'}, [
         createElement('ul', {}, [
           createElement('li', {
             onclick: () => this.#parent.edit(this.#revision)
@@ -776,7 +776,7 @@ class PopupMenu {
             onclick: () => this.#parent.abandon(this.#revision)
           }, ['Abandon'])
         ])
-      ], {className: 'menu'});
+      ]);
       const closeDialog = () => dialog.close();
       dialog.addEventListener('close', () => {
         document.body.removeChild(dialog);
