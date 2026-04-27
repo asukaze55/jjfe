@@ -6,8 +6,8 @@
   "devDependencies": {
     "@tauri-apps/cli": "^2",
     "nodemon": "^3.1.14",
-    "typescript": "^6.0.2",
-    "webpack": "^5.105.4",
+    "typescript": "^6.0.3",
+    "webpack": "^5.106.2",
     "webpack-cli": "^7.0.2"
   },
   "scripts": {
