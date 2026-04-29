@@ -728,70 +728,30 @@ class ChangeView {
 }
 
 class PopupMenu {
-  /** @type {ChangeDetails|Promise<ChangeDetails>} */
-  #changeDetails;
-  /** @type {string} */
-  #revision;
-  /** @type {RepositoryView} */
-  #parent;
-  /** @type {number} */
-  #x;
-  /** @type {number} */
-  #y;
+  /** @type {HTMLDialogElement} */
+  #dialog;
 
-  /**
-   * @param {ChangeDetails|Promise<ChangeDetails>} changeDetails
-   * @param {string} revision
-   * @param {RepositoryView} parent
-   * @param {number} x
-   * @param {number} y
-   */
-  constructor(changeDetails, revision, parent, x, y) {
-    this.#changeDetails = changeDetails;
-    this.#revision = revision;
-    this.#parent = parent;
-    this.#x = x;
-    this.#y = y;
+  /** @param {HTMLDialogElement} dialog */
+  constructor(dialog) {
+    this.#dialog = dialog;
   }
 
-  /** @returns {Promise<void>} */
-  show() {
+  /**
+   * @param {number} x
+   * @param {number} y
+   * @returns {Promise<void>}
+   */
+  show(x, y) {
     return new Promise(resolve => {
-      const dialog = createElement('dialog', {className: 'menu'}, [
-        createElement('ul', {}, [
-          createElement('li', {
-            onclick: () => this.#parent.edit(this.#revision)
-          }, ['Edit']),
-          createElement('li', {
-            onclick: () => this.#parent.new(this.#revision)
-          }, ['New']),
-          createElement('li', {
-            onclick: () =>
-                this.#parent.describe(this.#revision, this.#changeDetails)
-          }, ['Describe']),
-          createElement('li', {
-            onclick: () => this.#parent.squash(this.#revision)
-          }, ['Squash']),
-          createElement('li', {
-            onclick: () => this.#parent.rebase(this.#revision)
-          }, ['Rebase']),
-          createElement('li', {
-            onclick: () =>
-                this.#parent.bookmark(this.#revision, this.#changeDetails)
-          }, ['Bookmark']),
-          createElement('li', {
-            onclick: () => this.#parent.abandon(this.#revision)
-          }, ['Abandon'])
-        ])
-      ]);
+      const dialog = this.#dialog;
       const closeDialog = () => dialog.close();
       dialog.addEventListener('close', () => {
         document.body.removeChild(dialog);
         document.removeEventListener('click', closeDialog);
         resolve();
       }, {once: true});
-      dialog.style.left = this.#x + 'px';
-      dialog.style.top = this.#y + 'px';
+      dialog.style.left = x + 'px';
+      dialog.style.top = y + 'px';
       document.body.append(dialog);
       document.addEventListener('click', closeDialog);
       dialog.show();
@@ -947,8 +907,31 @@ class RepositoryView {
       option.addEventListener('contextmenu', event => {
         option.selected = true;
         const changeDetails = this.#changeView.setRevision(revision);
-        new PopupMenu(changeDetails, revision, this, event.pageX, event.pageY)
-            .show();
+        new PopupMenu(createElement('dialog', {className: 'menu'}, [
+          createElement('ul', {}, [
+            createElement('li', {
+              onclick: () => this.edit(revision)
+            }, ['Edit']),
+            createElement('li', {
+              onclick: () => this.new(revision)
+            }, ['New']),
+            createElement('li', {
+              onclick: () => this.describe(revision, changeDetails)
+            }, ['Describe']),
+            createElement('li', {
+              onclick: () => this.squash(revision)
+            }, ['Squash']),
+            createElement('li', {
+              onclick: () => this.rebase(revision)
+            }, ['Rebase']),
+            createElement('li', {
+              onclick: () => this.bookmark(revision, changeDetails)
+            }, ['Bookmark']),
+            createElement('li', {
+              onclick: () => this.abandon(revision)
+            }, ['Abandon'])
+          ])
+        ])).show(event.pageX, event.pageY);
         event.preventDefault();
       });
       select.append(option);
