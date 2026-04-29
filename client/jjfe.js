@@ -411,8 +411,8 @@ class BookmarkDialog {
         select.append(createElement('option', {}, [bookmark]));
       }
       const dialog = createDialog([
-        createTitleBar(`Change: ${this.#revision}`, () => dialog.close()),
-        createDiv('Bookmark: ', select),
+        createTitleBar(`Bookmark ${this.#revision}`, () => dialog.close()),
+        createDiv('Name: ', select),
         createElement('pre', {}, [this.#description]),
         createElement('div', {className: 'actions'}, [
           createButton('Move', async () => {
@@ -464,7 +464,7 @@ class DescribeDialog {
         value: this.#description
       });
       const dialog = createDialog([
-        createTitleBar(`Change: ${this.#revision}`, () => dialog.close()),
+        createTitleBar(`Describe ${this.#revision}`, () => dialog.close()),
         textarea,
         createElement('div', {className: 'actions'}, [
           createButton('Describe', async () => {
@@ -528,7 +528,7 @@ class RebaseDialog {
         }, [line]));
       });
       const dialog = createDialog([
-        createTitleBar('', () => dialog.close()),
+        createTitleBar('Rebase', () => dialog.close()),
         createDiv('Source:'),
         sourceSelect,
         createDiv('Onto:'),
