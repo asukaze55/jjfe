@@ -670,18 +670,19 @@ class ChangeView {
 
     this.#diffsView.setFiles(this.#changeDetails.files);
 
-    const moreButtons =
+    const moreMenu =
         new PopupMenu(createElement('dialog', {className: 'menu'}, [
           createElement('ul', {}, [
-            createElement('li', {
-              onclick: () => this.#parent.bookmark(r, this.#changeDetails)
-            }, ['Bookmark']),
-            createElement('li', {
-              onclick: () => this.#parent.rebase(r)
-            }, ['Rebase']),
-            createElement('li', {
-              onclick: () => this.#parent.abandon(r)
-            }, ['Abandon'])
+            createElement('li', {}, [
+              createButton('Bookmark',
+                  () => this.#parent.bookmark(r, this.#changeDetails))
+            ]),
+            createElement('li', {}, [
+              createButton('Rebase', () => this.#parent.rebase(r))
+            ]),
+            createElement('li', {}, [
+              createButton('Abandon', () => this.#parent.abandon(r))
+            ])
           ])
         ]));
 
@@ -695,7 +696,7 @@ class ChangeView {
             createButton('Edit', () => this.#parent.edit(r)),
             createButton('New', () => this.#parent.new(r)),
             createButton('Squash', () => this.#parent.squash(r)),
-            moreButtons.createMoreButton(),
+            moreMenu.createMoreButton(),
           ]),
         ]),
         createElement('pre', {}, [this.#changeDetails.attributes]),
@@ -930,27 +931,29 @@ class RepositoryView {
         const changeDetails = this.#changeView.setRevision(revision);
         new PopupMenu(createElement('dialog', {className: 'menu'}, [
           createElement('ul', {}, [
-            createElement('li', {
-              onclick: () => this.describe(revision, changeDetails)
-            }, ['Describe']),
-            createElement('li', {
-              onclick: () => this.edit(revision)
-            }, ['Edit']),
-            createElement('li', {
-              onclick: () => this.new(revision)
-            }, ['New']),
-            createElement('li', {
-              onclick: () => this.squash(revision)
-            }, ['Squash']),
-            createElement('li', {
-              onclick: () => this.bookmark(revision, changeDetails)
-            }, ['Bookmark']),
-            createElement('li', {
-              onclick: () => this.rebase(revision)
-            }, ['Rebase']),
-            createElement('li', {
-              onclick: () => this.abandon(revision)
-            }, ['Abandon'])
+            createElement('li', {}, [
+              createButton(
+                  'Describe', () => this.describe(revision, changeDetails))
+            ]),
+            createElement('li', {}, [
+              createButton('Edit', () => this.edit(revision))
+            ]),
+            createElement('li', {}, [
+              createButton('New', () => this.new(revision))
+            ]),
+            createElement('li', {}, [
+              createButton('Squash', () => this.squash(revision))
+            ]),
+            createElement('li', {}, [
+              createButton(
+                  'Bookmark', () => this.bookmark(revision, changeDetails))
+            ]),
+            createElement('li', {}, [
+              createButton('Rebase', () => this.rebase(revision))
+            ]),
+            createElement('li', {}, [
+              createButton('Abandon', () => this.abandon(revision))
+            ]),
           ])
         ])).show({left: event.pageX, top: event.pageY});
         event.preventDefault();
