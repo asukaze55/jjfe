@@ -22,7 +22,7 @@ JJFE の画面一番上のインプットボックスにリポジトリのパス
 
 開発環境として使っている [Tauri](https://v2.tauri.app/) はクロスプラットフォーム対応ですが、今のところ Windows 用以外のバイナリは用意していません。
 
-![スクリーンショット](https://www.asukaze.net/soft/jjfe/jjfe_050.png)
+![スクリーンショット](https://www.asukaze.net/soft/jjfe/jjfe_060.png)
 
 ## Web サーバー
 
