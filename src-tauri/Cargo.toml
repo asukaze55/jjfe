@@ -1,6 +1,6 @@
 [package]
 name = "jjfe"
-version = "0.6.0"
+version = "0.7.0"
 description = "JJ Frontend"
 authors = ["asukaze55"]
 license = "MIT"
