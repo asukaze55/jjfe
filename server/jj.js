@@ -91,6 +91,8 @@ function runJj(request, response) {
       } else if (request.url == '/jj/squash') {
         const r = validateRevision(json.r);
         args = ['squash', '-r', r];
+      } else if (request.url == '/jj/undo') {
+        args = ['undo']; 
       }
       const result = spawnSync(json.jj || 'jj', args, options);
       if (result.error) {

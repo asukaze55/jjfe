@@ -182,6 +182,11 @@ fn squash(jj: &str, cwd: &str, r: &str) -> Result<String> {
     shell_exec(jj, cwd, &["squash", "-r", validate_revision(r)])
 }
 
+#[tauri::command]
+fn undo(jj: &str, cwd: &str) -> Result<String> {
+    shell_exec(jj, cwd, &["undo"])
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -197,7 +202,8 @@ pub fn run() {
             new,
             rebase,
             show,
-            squash
+            squash,
+            undo
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

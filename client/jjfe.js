@@ -963,6 +963,13 @@ class RepositoryView {
       select.append(option);
     }
 
+    const moreMenu =
+        new PopupMenu(createElement('dialog', {className: 'menu'}, [
+          createElement('ul', {}, [
+            createElement('li', {}, [createButton('Undo', () => this.#undo())])
+          ])
+        ]));
+
     this.element.innerHTML = '';
     this.element.append(
         createElement('div', {style: 'display: flex'}, [
@@ -972,7 +979,8 @@ class RepositoryView {
               createElement('span', {className: 'actions'}, [
                 createButton('Reload', () => {
                   this.fetch();
-                })
+                }),
+                moreMenu.createMoreButton()
               ])
             ]), select]),
           createElement('div', {style: 'flex: 1; padding-left: 1em;'},
@@ -984,6 +992,11 @@ class RepositoryView {
   /** @param {string} revision */
   async squash(revision) {
     await fetchJj('squash', {...this.#env, r: revision});
+    await this.fetch();
+  }
+
+  async #undo() {
+    await fetchJj('undo', this.#env);
     await this.fetch();
   }
 }
