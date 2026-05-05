@@ -10,7 +10,7 @@ function validate(input, regexp) {
   if (regexp.test(input)) {
     return input;
   }
-  throw `Validation Failed: ${input} !~ ${regexp}`;
+  throw new Error(`Validation Failed: ${input} !~ ${regexp}`);
 }
 
 /**
@@ -93,6 +93,8 @@ function runJj(request, response) {
         args = ['squash', '-r', r];
       } else if (request.url == '/jj/undo') {
         args = ['undo']; 
+      } else {
+        throw new Error(`Unknown command: ${request.url}`);
       }
       const result = spawnSync(json.jj || 'jj', args, options);
       if (result.error) {

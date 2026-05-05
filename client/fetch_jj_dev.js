@@ -16,7 +16,7 @@ async function fetchJj(command, json) {
       body: JSON.stringify(json)
     });
     if (response.status != 200) {
-      throw response.statusText + '\n\n' + await response.text();
+      throw new Error(response.statusText + '\n\n' + await response.text());
     }
     return await response.text();
   } catch (e) {
