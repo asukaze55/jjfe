@@ -744,7 +744,8 @@ class PopupMenu {
     button.addEventListener('click', event => {
       if (!this.#dialog.open) {
         const rect = button.getBoundingClientRect();
-        this.show({right: rect.right+ scrollX, top: rect.bottom + scrollY});
+        this.show(
+            button, {right: rect.right+ scrollX, top: rect.bottom + scrollY});
         event.stopPropagation();
       }
     });
@@ -752,19 +753,20 @@ class PopupMenu {
   }
 
   /**
+   * @param {Element} referenceElement
    * @param {{left?: number, right?: number, top?: number}} position
    * @returns {Promise<void>}
    */
-  show(position) {
+  show(referenceElement, position) {
     return new Promise(resolve => {
       const dialog = this.#dialog;
       const closeDialog = () => dialog.close();
       dialog.addEventListener('close', () => {
-        document.body.removeChild(dialog);
+        dialog.remove();
         document.removeEventListener('click', closeDialog);
         resolve();
       }, {once: true});
-      document.body.append(dialog);
+      referenceElement.after(dialog);
       document.addEventListener('click', closeDialog);
       if (position.left != null) {
         dialog.style.left = position.left + 'px';
@@ -955,7 +957,7 @@ class RepositoryView {
               createButton('Abandon', () => this.abandon(revision))
             ]),
           ])
-        ])).show({left: event.pageX, top: event.pageY});
+        ])).show(select, {left: event.pageX, top: event.pageY});
         event.preventDefault();
       });
       select.append(option);
