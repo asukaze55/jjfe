@@ -75,9 +75,10 @@ function runJj(request, response) {
         const f = validate(json.f, /^[^\"]+$/);
         args = ['file', 'show', '-r', r, f];
       } else if (request.url == '/jj/log') {
-        args = ['log',  '-r', 'ancestors(visible_heads(), 20)', '-T',
-            'change_id.short(4) ++ \' \' ++ bookmarks ++ \' \' ++ tags ++ ' +
-            '\' \' ++ \' : \' ++ description.first_line()'];
+        args = ['log',
+            '-r', `ancestors(visible_heads(), ${parseInt(json.n, 10)})`,
+            '-T', 'change_id.short(4) ++ \' \' ++ bookmarks ++ \' \' ++ ' +
+            'tags ++ \' \' ++ \' : \' ++ description.first_line()'];
       } else if (request.url == '/jj/new') {
         const r = validateRevision(json.r);
         args = ['new', '-r', r];

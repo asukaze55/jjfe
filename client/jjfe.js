@@ -793,6 +793,8 @@ class RepositoryView {
   #revisionsMap = new Map();
   /** @type {Set<string>} */
   #bookmarksSet = new Set();
+  /** @type {number} */
+  #fetchCount = 20;
 
   /** @param {Environment} env */
   constructor(env) {
@@ -835,17 +837,17 @@ class RepositoryView {
     await this.fetch();
   }
 
-  async fetch() {
-    const response = await fetchJj('log', this.#env);
+  async fetch(fetchCount = 20, scrollTop = 0) {
+    this.#fetchCount = fetchCount;
+    const response = await fetchJj('log', {...this.#env, n: fetchCount});
 
     const revisionsTree = [];
     const revisionsMap = new Map();
     const bookmarksSet = new Set();
-    let revision = '';
     for (const line of response.split('\n')) {
       const match = line.match(/([k-z]{4})\s+([^\:]*)\:.*$/);
       if (match) {
-        revision = match[1];
+        const revision = match[1];
         const bookmarks = match[2].split(/\s/);
         for (const bookmark of bookmarks) {
           const bookmarkMatch = bookmark.match(/^[\w\d\.]+/);
@@ -857,15 +859,19 @@ class RepositoryView {
         if (!this.#changeView.revision() && /^[^\w]*\@/.test(line)) {
           this.#changeView.setRevision(revision);
         }
-      }
-      revisionsTree.push({line, revision});
+        revisionsTree.push({line, revision});
+      } else if (/^[^\w]*\~/.test(line)) {
+        revisionsTree.push({line, revision: '~'});
+      } else {
+        revisionsTree.push({line, revision: ''});
+      }      
     }
 
     this.#revisionsTree = revisionsTree;
     this.#revisionsMap = revisionsMap;
     this.#bookmarksSet = bookmarksSet;
     localStorage.setItem('path', this.#env.cwd);
-    this.#render();
+    this.#render(scrollTop);
   }
 
   /** @param {string} revision */
@@ -880,12 +886,18 @@ class RepositoryView {
     await this.fetch();
   }
 
-  #render() {
+  /** @param {number} scrollTop */
+  #render(scrollTop) {
     const select = createElement('select', {
       className: 'log',
       name: 'log',
-      size: 10,
-      onchange: () => this.#changeView.setRevision(select.value)
+      size: 10
+    });
+    select.addEventListener('change', () => {
+      const revision = select.value;
+      if (revision != '' && revision != '~') {
+        this.#changeView.setRevision(revision);
+      }
     });
     select.addEventListener('mousedown', mouseDownEvent => {
       if (mouseDownEvent.button != 0) {
@@ -926,44 +938,53 @@ class RepositoryView {
         }
       }, {once: true});
     });
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) {
+        this.fetch(this.#fetchCount + 20, select.scrollTop);
+      }
+    }, {root: select});
 
     for (const {line, revision} of this.#revisionsTree) {
       const option = createElement('option', {
         value: revision,
         selected: revision == this.#changeView.revision()
       }, [line]);
-      option.addEventListener('contextmenu', event => {
-        option.selected = true;
-        const changeDetails = this.#changeView.setRevision(revision);
-        new PopupMenu(createElement('dialog', {className: 'menu'}, [
-          createElement('ul', {}, [
-            createElement('li', {}, [
-              createButton(
-                  'Describe', () => this.describe(revision, changeDetails))
-            ]),
-            createElement('li', {}, [
-              createButton('Edit', () => this.edit(revision))
-            ]),
-            createElement('li', {}, [
-              createButton('New', () => this.new(revision))
-            ]),
-            createElement('li', {}, [
-              createButton('Squash', () => this.squash(revision))
-            ]),
-            createElement('li', {}, [
-              createButton(
-                  'Bookmark', () => this.bookmark(revision, changeDetails))
-            ]),
-            createElement('li', {}, [
-              createButton('Rebase', () => this.rebase(revision))
-            ]),
-            createElement('li', {}, [
-              createButton('Abandon', () => this.abandon(revision))
-            ]),
-          ])
-        ])).show(select, {left: event.pageX, top: event.pageY});
-        event.preventDefault();
-      });
+      if (revision == '~') {
+        observer.observe(option);
+      } else if (revision != '') {
+        option.addEventListener('contextmenu', event => {
+          option.selected = true;
+          const changeDetails = this.#changeView.setRevision(revision);
+          new PopupMenu(createElement('dialog', {className: 'menu'}, [
+            createElement('ul', {}, [
+              createElement('li', {}, [
+                createButton(
+                    'Describe', () => this.describe(revision, changeDetails))
+              ]),
+              createElement('li', {}, [
+                createButton('Edit', () => this.edit(revision))
+              ]),
+              createElement('li', {}, [
+                createButton('New', () => this.new(revision))
+              ]),
+              createElement('li', {}, [
+                createButton('Squash', () => this.squash(revision))
+              ]),
+              createElement('li', {}, [
+                createButton(
+                    'Bookmark', () => this.bookmark(revision, changeDetails))
+              ]),
+              createElement('li', {}, [
+                createButton('Rebase', () => this.rebase(revision))
+              ]),
+              createElement('li', {}, [
+                createButton('Abandon', () => this.abandon(revision))
+              ]),
+            ])
+          ])).show(select, {left: event.pageX, top: event.pageY});
+          event.preventDefault();
+        });
+      }
       select.append(option);
     }
 
@@ -993,6 +1014,7 @@ class RepositoryView {
         ]),
         createDiv(this.#changeView.filesElement));
     select.focus();
+    setTimeout(() => select.scrollTop = scrollTop);
   }
 
   /** @param {string} revision */

@@ -133,14 +133,14 @@ fn file_show(jj: &str, cwd: &str, r: &str, f: &str) -> Result<String> {
 }
 
 #[tauri::command]
-fn log(jj: &str, cwd: &str) -> Result<String> {
+fn log(jj: &str, cwd: &str, n: i32) -> Result<String> {
     shell_exec(
         jj,
         cwd,
         &[
             "log",
             "-r",
-            "ancestors(visible_heads(), 20)",
+            &format!("ancestors(visible_heads(), {})", n),
             "-T",
             "change_id.short(4) ++ ' ' ++ bookmarks ++ ' ' ++ tags ++ ' ' ++ \
                 ' : ' ++ description.first_line()",
