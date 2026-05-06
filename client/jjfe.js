@@ -576,37 +576,33 @@ class ChangeDetails {
 class ChangeView {
   /** @type {Environment} */
   #env;
-  /** @type {string} */
-  #revision;
   /** @type {RepositoryView} */
   #parent;
+  /** @type {string} */
+  #revision = '';
   /** @type {ChangeDetails} */
   #changeDetails = ChangeDetails.EMPTY;
   /** @type {HTMLDivElement} */
   #attributesDiv;
   /** @type {HTMLInputElement} */
   #searchInput;
-  /** @type {DiffsView} */
-  #diffsView;
-  /** @type {SearchView} */
-  #searchView;
+  /** @type {DiffsView?} */
+  #diffsView = null;
+  /** @type {SearchView?} */
+  #searchView = null;
 
   /**
    * @param {Environment} env
-   * @param {string} revision
    * @param {RepositoryView} parent
    */
-  constructor(env, revision, parent) {
+  constructor(env, parent) {
     this.#env = env;
-    this.#revision = revision;
     this.#parent = parent;
-    this.#diffsView = new DiffsView(env, revision);
-    this.#searchView = new SearchView(env, revision);
     this.#attributesDiv = createElement('div', {style: 'flex: 1'});
     this.#searchInput = createElement('input', {
       name: 'q',
       oninput: () => {
-        this.#searchView.setSearchString(this.#searchInput.value);
+        this.#searchView?.setSearchString(this.#searchInput.value);
         this.#render();
       }
     });
@@ -621,7 +617,6 @@ class ChangeView {
           ])
         ]);
     this.filesElement = createDiv();
-    this.#fetch();
   }
 
   /** @returns {Promise<ChangeDetails>} */
@@ -664,7 +659,7 @@ class ChangeView {
   #render() {
     const cwd = this.#env.cwd;
     const r = this.#revision;
-    if (!cwd || !r) {
+    if (!cwd || !r || !this.#diffsView || !this.#searchView) {
       return;
     }
 
@@ -707,6 +702,10 @@ class ChangeView {
     } else {
       this.filesElement.append(this.#diffsView.element);
     }
+  }
+
+  revision() {
+    return this.#revision;
   }
 
   /**
@@ -798,7 +797,7 @@ class RepositoryView {
   /** @param {Environment} env */
   constructor(env) {
     this.#env = env;
-    this.#changeView = new ChangeView(this.#env, '@', this);
+    this.#changeView = new ChangeView(this.#env, this);
     this.element = createDiv();
     this.fetch();
   }
@@ -855,6 +854,9 @@ class RepositoryView {
           }
         }
         revisionsMap.set(revision, match[0]);
+        if (!this.#changeView.revision() && /^[^\w]*\@/.test(line)) {
+          this.#changeView.setRevision(revision);
+        }
       }
       revisionsTree.push({line, revision});
     }
@@ -862,7 +864,6 @@ class RepositoryView {
     this.#revisionsTree = revisionsTree;
     this.#revisionsMap = revisionsMap;
     this.#bookmarksSet = bookmarksSet;
-    this.#changeView = new ChangeView(this.#env, '@', this);
     localStorage.setItem('path', this.#env.cwd);
     this.#render();
   }
@@ -927,7 +928,10 @@ class RepositoryView {
     });
 
     for (const {line, revision} of this.#revisionsTree) {
-      const option = createElement('option', {value: revision}, [line]);
+      const option = createElement('option', {
+        value: revision,
+        selected: revision == this.#changeView.revision()
+      }, [line]);
       option.addEventListener('contextmenu', event => {
         option.selected = true;
         const changeDetails = this.#changeView.setRevision(revision);
@@ -978,6 +982,7 @@ class RepositoryView {
               createElement('span', {className: 'header-label'}, ['Log']),
               createElement('span', {className: 'actions'}, [
                 createButton('Reload', () => {
+                  this.#changeView = new ChangeView(this.#env, this);
                   this.fetch();
                 }),
                 moreMenu.createMoreButton()
@@ -987,6 +992,7 @@ class RepositoryView {
             [this.#changeView.attributesElement])
         ]),
         createDiv(this.#changeView.filesElement));
+    select.focus();
   }
 
   /** @param {string} revision */
