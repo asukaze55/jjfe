@@ -325,7 +325,7 @@ class SearchView {
     const response = await fetchJj('file_search', {
       ...this.#env,
       r: this.#revision,
-      p: '*' + this.#string + '*'
+      p: `substring:${this.#string}`
     });
     this.#files = response.split('\n').filter(f => f);
     this.#render();

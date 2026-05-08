@@ -68,8 +68,7 @@ function runJj(request, response) {
         args = ['edit', '-r', r];
       } else if (request.url == '/jj/file_search') {
         const r = validateRevision(json.r);
-        const p = validate(json.p, /^[^\"]+$/);
-        args = ['file', 'search', '-r', r, '-p', p];
+        args = ['file', 'search', '-r', r, '-p', json.p];
       } else if (request.url == '/jj/file_show') {
         const r = validateRevision(json.r);
         const f = validate(json.f, /^[^\"]+$/);
