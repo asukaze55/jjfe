@@ -52,18 +52,18 @@ class DiffView {
   }
 
   #render() {
-    this.element.innerHTML = '';
-    this.element.append(createElement('div', {className: 'file-header'}, [
-      createElement('span', {className: 'header-label'}, [this.#file]),
-      createElement('span', {className: 'actions'}, [
-        createButton('Collapse',
-            () => this.setExpansionState(ExpansionState.COLLAPSED)),
-        createButton('Diff',
-            () => this.setExpansionState(ExpansionState.DIFF)),
-        createButton('Expand',
-            () => this.setExpansionState(ExpansionState.EXPANDED))
-      ])
-    ]));
+    this.element.replaceChildren(
+        createElement('div', {className: 'file-header'}, [
+          createElement('span', {className: 'header-label'}, [this.#file]),
+          createElement('span', {className: 'actions'}, [
+            createButton('Collapse',
+                () => this.setExpansionState(ExpansionState.COLLAPSED)),
+            createButton('Diff',
+                () => this.setExpansionState(ExpansionState.DIFF)),
+            createButton('Expand',
+                () => this.setExpansionState(ExpansionState.EXPANDED))
+          ])
+        ]));
     if (this.#expansionState == ExpansionState.COLLAPSED) {
       return;
     }
@@ -162,7 +162,6 @@ class DiffsView {
   }
 
   #render() {
-    this.element.innerHTML = '';
     const fileCount = this.#diffViews.length;
     const actionButtons = (fileCount < 2) ? [] : [
       createButton('Collapse All', () => {
@@ -181,7 +180,7 @@ class DiffsView {
         }
       })
     ];
-    this.element.append(
+    this.element.replaceChildren(
       createElement('div', {className: 'section-header'}, [
         createElement('span', {className: 'header-label'}, [
           (fileCount == 1) ? '1 file changed' : `${fileCount} files changed`
@@ -227,7 +226,8 @@ class FileView {
   }
 
   async #fetch() {
-    if (this.#response == '' && this.#expansionState != ExpansionState.COLLAPSED) { 
+    if (this.#response == '' &&
+        this.#expansionState != ExpansionState.COLLAPSED) {
       this.#response = await fetchJj('file_show', {
         ...this.#env,
         r: this.#revision,
@@ -238,18 +238,18 @@ class FileView {
   }
 
   #render() {
-    this.element.innerHTML = '';
-    this.element.append(createElement('div', {className: 'file-header'}, [
-      createElement('span', {className: 'header-label'}, [this.#file]),
-      createElement('span', {className: 'actions'}, [
-        createButton('Collapse',
-            () => this.setExpansionState(ExpansionState.COLLAPSED)),
-        createButton('Match',
-            () => this.setExpansionState(ExpansionState.MATCH)),
-        createButton('Expand',
-            () => this.setExpansionState(ExpansionState.EXPANDED))
-      ])
-    ]));
+    this.element.replaceChildren(
+        createElement('div', {className: 'file-header'}, [
+          createElement('span', {className: 'header-label'}, [this.#file]),
+          createElement('span', {className: 'actions'}, [
+            createButton('Collapse',
+                () => this.setExpansionState(ExpansionState.COLLAPSED)),
+            createButton('Match',
+                () => this.setExpansionState(ExpansionState.MATCH)),
+            createButton('Expand',
+                () => this.setExpansionState(ExpansionState.EXPANDED))
+          ])
+        ]));
     if (this.#expansionState == ExpansionState.COLLAPSED) {
       return;
     }
@@ -332,7 +332,6 @@ class SearchView {
   }
 
   #render() {
-    this.element.innerHTML = '';
     const fileCount = this.#files.length;
     /** @type {FileView[]} */
     const fileViews = [];
@@ -363,7 +362,7 @@ class SearchView {
         }
       })
     ];
-    this.element.append(
+    this.element.replaceChildren(
       createElement('div', {className: 'section-header'}, [
         createElement('span', {className: 'header-label'},
             [(fileCount == 1) ? '1 file found' : `${fileCount} files found`]),
@@ -681,8 +680,7 @@ class ChangeView {
           ])
         ]));
 
-    this.#attributesDiv.innerHTML = '';
-    this.#attributesDiv.append(
+    this.#attributesDiv.replaceChildren(
         createElement('div', {className: 'section-header'}, [
           createElement('span', {className: 'header-label'}, [`Change: ${r}`]),
           createElement('div', {className: 'actions'}, [
@@ -696,11 +694,10 @@ class ChangeView {
         ]),
         createElement('pre', {}, [this.#changeDetails.attributes]),
         createElement('pre', {}, [this.#changeDetails.description]));
-    this.filesElement.innerHTML = '';
     if (this.#searchInput.value) {
-      this.filesElement.append(this.#searchView.element);
+      this.filesElement.replaceChildren(this.#searchView.element);
     } else {
-      this.filesElement.append(this.#diffsView.element);
+      this.filesElement.replaceChildren(this.#diffsView.element);
     }
   }
 
@@ -864,7 +861,7 @@ class RepositoryView {
         revisionsTree.push({line, revision: '~'});
       } else {
         revisionsTree.push({line, revision: ''});
-      }      
+      }
     }
 
     this.#revisionsTree = revisionsTree;
@@ -995,8 +992,7 @@ class RepositoryView {
           ])
         ]));
 
-    this.element.innerHTML = '';
-    this.element.append(
+    this.element.replaceChildren(
         createElement('div', {style: 'display: flex'}, [
           createElement('div', {style: 'flex: 1'}, [
             createElement('div', {className: 'section-header'}, [
@@ -1103,7 +1099,7 @@ class JjfeView {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  const jj = localStorage.getItem('jj') || 'jj'; 
+  const jj = localStorage.getItem('jj') || 'jj';
   const cwd = location.hash.substring(1) || localStorage.getItem('path') || '';
   document.getElementById('jjfe')?.append(new JjfeView({jj, cwd}).element);
 });
