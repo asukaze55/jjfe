@@ -12,6 +12,21 @@ const ExpansionState = {
   EXPANDED: 1000
 };
 
+/**
+ * @param {number|string} lineNumber
+ * @param {string=} className
+ * @param {Array<Node|string>=} children
+ * @returns {HTMLDivElement}
+ */
+function createLine(lineNumber, className = '', children = []) {
+  const div = createElement('div', {className: 'line'}, children);
+  div.dataset.lineNumber = String(lineNumber);
+  if (className) {
+    div.classList.add(className);
+  }
+  return div;
+}
+
 class DiffView {
   /** @type {Environment} */
   #env;
@@ -69,6 +84,8 @@ class DiffView {
     }
     const left = createElement('div', {className: 'diff'});
     const right = createElement('div', {className: 'diff'});
+    let leftLineNumber = 1;
+    let rightLineNumber = 1;
     const deletedLines = [];
     const insertedLines = [];
     for (const line of this.#response.split('\n')) {
@@ -86,13 +103,13 @@ class DiffView {
                 deleted.at(-q - 1) == inserted.at(-q - 1)) {
               q++;
             }
-            left.append(createElement('div', {className: 'del'}, [
+            left.append(createLine(leftLineNumber++, 'del', [
               deleted.substring(0, p),
               createElement('span', {className: 'del'},
                   [deleted.substring(p, deleted.length - q)]),
               deleted.substring(deleted.length - q)
             ]));
-            right.append(createElement('div', {className: 'ins'}, [
+            right.append(createLine(rightLineNumber++, 'ins', [
               inserted.substring(0, p),
               createElement('span', {className: 'ins'},
                   [inserted.substring(p, inserted.length - q)]),
@@ -100,30 +117,32 @@ class DiffView {
             ]));
           } else {
             if (deleted != null) {
-              left.append(createElement('div', {className: 'del'}, [deleted]));
+              left.append(createLine(leftLineNumber++, 'del', [deleted]));
             } else {
-              left.append(createDiv());
+              left.append(createLine(''));
             }
             if (inserted != null) {
-              right.append(
-                  createElement('div', {className: 'ins'}, [inserted]));
+              right.append(createLine(rightLineNumber++, 'ins', [inserted]));
             } else {
-              right.append(createDiv());
+              right.append(createLine(''));
             }
           }
         }
       }
 
       if (line.startsWith('@')) {
-        const match = line.match(/\-(\d+,\d+)\s*\+(\d+,\d+)/);
+        const match = line.match(/-(\d+),(\d+)?\s*\+(\d+),(\d+)?/);
         if (match) {
-          left.append(createElement('div', {className: 'section'}, [match[1]]));
-          right.append(
-              createElement('div', {className: 'section'}, [match[2]]));
+          leftLineNumber = Number(match[1]);
+          rightLineNumber = Number(match[3]);
+          left.append(createElement(
+              'div', {className: 'section'}, [`${match[1]},${match[2]}`]));
+          right.append(createElement(
+              'div', {className: 'section'}, [`${match[3]},${match[4]}`]));
         }
       } else if (line.startsWith(' ')) {
-        left.append(createDiv(line.substring(1)));
-        right.append(createDiv(line.substring(1)));
+        left.append(createLine(leftLineNumber++, '', [line.substring(1)]));
+        right.append(createLine(rightLineNumber++, '', [line.substring(1)]));
       } else if (line.startsWith('-') && !line.startsWith('--- ')) {
         deletedLines.push(line.substring(1));
       } else if (line.startsWith('+') && !line.startsWith('+++ ')) {
@@ -259,7 +278,7 @@ class FileView {
       if (!match && this.#expansionState != ExpansionState.EXPANDED) {
         return;
       }
-      const lineDiv = createElement('div', {className: 'line'});
+      const lineDiv = createLine(y + 1);
       lineDiv.dataset.lineNumber = String(y + 1);
       if (line.includes(this.#string)) {
         const spans = line.split(this.#string);
