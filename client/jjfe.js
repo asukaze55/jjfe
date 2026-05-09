@@ -424,7 +424,7 @@ class BookmarkDialog {
   /** @returns {Promise<void>} */
   show() {
     return new Promise(resolve => {
-      const select = createElement('select');
+      const select = createElement('select', {name: 'bookmark-name'});
       for (const bookmark of this.#bookmarksSet) {
         select.append(createElement('option', {}, [bookmark]));
       }
@@ -531,9 +531,9 @@ class RebaseDialog {
   /** @returns {Promise<void>} */
   show() {
     return new Promise(resolve => {
-      const sourceSelect = createElement('select');
+      const sourceSelect = createElement('select', {name: 'source-revision'});
       sourceSelect.append(createElement('option', {value: '@'}, ['@']));
-      const ontoSelect = createElement('select');
+      const ontoSelect = createElement('select', {name: 'onto-revision'});
       ontoSelect.append(createElement('option', {value: '@'}, ['@']));
       this.#revisionsMap.forEach((line, revision) => {
         sourceSelect.append(createElement('option', {
