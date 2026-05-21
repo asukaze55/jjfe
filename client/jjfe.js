@@ -7,8 +7,7 @@ const { fetchJj } = require('./fetch_jj.js');
 /** @enum {number} */
 const ExpansionState = {
   COLLAPSED: -1,
-  MATCH: 0,
-  DIFF: 5,
+  CONTEXT: 5,
   EXPANDED: 1000
 };
 
@@ -74,7 +73,7 @@ class DiffView {
             createButton('Collapse',
                 () => this.setExpansionState(ExpansionState.COLLAPSED)),
             createButton('Diff',
-                () => this.setExpansionState(ExpansionState.DIFF)),
+                () => this.setExpansionState(ExpansionState.CONTEXT)),
             createButton('Expand',
                 () => this.setExpansionState(ExpansionState.EXPANDED))
           ])
@@ -178,7 +177,7 @@ class DiffsView {
     this.#env = env;
     this.#revision = revision;
     const expansionState =
-        (files.length > 1) ? ExpansionState.COLLAPSED : ExpansionState.DIFF;
+        (files.length > 1) ? ExpansionState.COLLAPSED : ExpansionState.CONTEXT;
     this.#diffViews =
         files.map(file => new DiffView(env, revision, file, expansionState));
     this.element = createDiv();
@@ -195,7 +194,7 @@ class DiffsView {
       }),
       createButton('Diff All', () => {
         for (const diffView of this.#diffViews) {
-          diffView.setExpansionState(ExpansionState.DIFF);
+          diffView.setExpansionState(ExpansionState.CONTEXT);
         }
       }),
       createButton('Expand All', () => {
@@ -260,7 +259,7 @@ class FileView {
             createButton('Collapse',
                 () => this.setExpansionState(ExpansionState.COLLAPSED)),
             createButton('Match',
-                () => this.setExpansionState(ExpansionState.MATCH)),
+                () => this.setExpansionState(ExpansionState.CONTEXT)),
             createButton('Expand',
                 () => this.setExpansionState(ExpansionState.EXPANDED))
           ])
@@ -269,14 +268,22 @@ class FileView {
       return;
     }
     const div = createElement('div', {className: 'file'});
+    /** @type {string[]} */
+    const contextLines = [];
+    let lastMatch = -1;
     this.#response.split('\n').forEach((line, y) => {
       const match = line.includes(this.#string);
-      if (!match && this.#expansionState != ExpansionState.EXPANDED) {
-        return;
-      }
-      const lineDiv = createLine(y + 1);
-      lineDiv.dataset.lineNumber = String(y + 1);
-      if (line.includes(this.#string)) {
+      if (match) {
+        if (div.hasChildNodes() &&
+            lastMatch < y - 2 * this.#expansionState - 1) {
+          div.append(createLine(''));
+        }
+        lastMatch = y;
+        let contextLine;
+        while ((contextLine = contextLines.shift()) != null) {
+          div.append(createLine(y - contextLines.length, '', [contextLine]));
+        }
+        const lineDiv = createLine(y + 1);
         const spans = line.split(this.#string);
         lineDiv.append(spans[0]);
         for (let i = 1; i < spans.length; i++) {
@@ -284,10 +291,16 @@ class FileView {
               createElement('span', {className: 'match'}, [this.#string]),
               spans[i]);
         }
+        div.append(lineDiv);
+      } else if (this.#expansionState == ExpansionState.EXPANDED ||
+          (lastMatch >= 0 && y - lastMatch <= this.#expansionState)) {
+        div.append(createLine(y + 1, '', [line]));
       } else {
-        lineDiv.append(line);
+        contextLines.push(line);
+        if (contextLines.length > this.#expansionState) {
+          contextLines.shift();
+        }
       }
-      div.append(lineDiv);
     });
     this.element.append(div);
   }
@@ -357,7 +370,7 @@ class SearchView {
         this.#fileViews.set(file, view);
       }
       view.setContext(this.#string,
-          (fileCount > 1) ? ExpansionState.COLLAPSED : ExpansionState.DIFF);
+          (fileCount > 1) ? ExpansionState.COLLAPSED : ExpansionState.CONTEXT);
       fileViews.push(view);
     }
     const actionButtons = (fileCount < 2) ? [] : [
@@ -368,7 +381,7 @@ class SearchView {
       }),
       createButton('Match All', () => {
         for (const fileView of fileViews) {
-          fileView.setExpansionState(ExpansionState.MATCH);
+          fileView.setExpansionState(ExpansionState.CONTEXT);
         }
       }),
       createButton('Expand All', () => {
