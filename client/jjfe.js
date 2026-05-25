@@ -220,8 +220,8 @@ class FileView {
   #revision;
   /** @type {string} */
   #file;
-  /** @type {string} */
-  #string = '';
+  /** @type {RegExp?} */
+  #regExp = null;
   /** @type {ExpansionState} */
   #expansionState = ExpansionState.COLLAPSED;
   /** @type {string} */
@@ -272,8 +272,8 @@ class FileView {
     const contextLines = [];
     let lastMatch = -1;
     this.#response.split('\n').forEach((line, y) => {
-      const match = line.includes(this.#string);
-      if (match) {
+      const matches = this.#regExp ? [...line.matchAll(this.#regExp)] : [];
+      if (matches.length > 0) {
         if (div.hasChildNodes() &&
             lastMatch < y - 2 * this.#expansionState - 1) {
           div.append(createLine(''));
@@ -284,12 +284,19 @@ class FileView {
           div.append(createLine(y - contextLines.length, '', [contextLine]));
         }
         const lineDiv = createLine(y + 1);
-        const spans = line.split(this.#string);
-        lineDiv.append(spans[0]);
-        for (let i = 1; i < spans.length; i++) {
+        let lastIndex = 0;
+        for (const match of matches) {
+          const matchIndex = match.index;
+          const matchText = match[0];
+          if (matchIndex > lastIndex) {
+            lineDiv.append(line.substring(lastIndex, matchIndex));
+          }
           lineDiv.append(
-              createElement('span', {className: 'match'}, [this.#string]),
-              spans[i]);
+              createElement('span', {className: 'match'}, [matchText]));
+          lastIndex = matchIndex + matchText.length
+        }
+        if (lastIndex < line.length) {
+          lineDiv.append(line.substring(lastIndex));
         }
         div.append(lineDiv);
       } else if (this.#expansionState == ExpansionState.EXPANDED ||
@@ -306,12 +313,12 @@ class FileView {
   }
 
   /**
-   * @param {string} string
+   * @param {RegExp?} regExp
    * @param {ExpansionState} expansionState
    */
-  setContext(string, expansionState) {
-    if (string != this.#string || expansionState != this.#expansionState) {
-      this.#string = string;
+  setContext(regExp, expansionState) {
+    if (regExp != this.#regExp || expansionState != this.#expansionState) {
+      this.#regExp = regExp;
       this.#expansionState = expansionState;
       this.#fetch();
     }
@@ -333,6 +340,10 @@ class SearchView {
   #revision;
   /** @type {string} */
   #string = '';
+  /** @type {boolean} */
+  #caseSensitive = false;
+  /** @type {boolean} */
+  #regex = false;
   /** @type {string[]} */
   #files = []
   /** @type {Map<string, FileView>} */
@@ -350,27 +361,36 @@ class SearchView {
   }
 
   async #fetch() {
+    const regexFlag = this.#regex ? 'regex' : 'substring';
+    const caseFlag = this.#caseSensitive ? '' : '-i';
     const response = await fetchJj('file_search', {
       ...this.#env,
       r: this.#revision,
-      p: `substring:${this.#string}`
+      p: `${regexFlag}${caseFlag}:${this.#string}`
     });
     this.#files = response.split('\n').filter(f => f);
     this.#render();
   }
 
   #render() {
-    const fileCount = this.#files.length;
     /** @type {FileView[]} */
     const fileViews = [];
+    let regExp = null;
+    try {
+      regExp = new RegExp(
+          this.#regex ? this.#string : RegExp.escape(this.#string),
+          this.#caseSensitive ? 'g' : 'gi');
+    } catch {}
+    const fileCount = this.#files.length;
+    const expansionState =
+        (fileCount > 1) ? ExpansionState.COLLAPSED : ExpansionState.CONTEXT;
     for (const file of this.#files) {
       let view = this.#fileViews.get(file);
       if (!view) {
         view = new FileView(this.#env, this.#revision, file);
         this.#fileViews.set(file, view);
       }
-      view.setContext(this.#string,
-          (fileCount > 1) ? ExpansionState.COLLAPSED : ExpansionState.CONTEXT);
+      view.setContext(regExp, expansionState);
       fileViews.push(view);
     }
     const actionButtons = (fileCount < 2) ? [] : [
@@ -398,10 +418,17 @@ class SearchView {
       ]), ...fileViews.map(view => view.element));
   }
 
-  /** @param {string} string */
-  setSearchString(string) {
-    if (string != this.#string) {
+  /**
+   * @param {string} string
+   * @param {boolean} caseSensitive
+   * @param {boolean} regex
+   */
+  setSearchString(string, caseSensitive, regex) {
+    if (string != this.#string || caseSensitive != this.#caseSensitive ||
+        regex != this.#regex) {
       this.#string = string;
+      this.#caseSensitive = caseSensitive;
+      this.#regex = regex;
       this.#fetch();
     }
   }
@@ -613,6 +640,10 @@ class ChangeView {
   #attributesDiv;
   /** @type {HTMLInputElement} */
   #searchInput;
+  /** @type {HTMLInputElement} */
+  #caseSensitiveInput;
+  /** @type {HTMLInputElement} */
+  #regexInput;
   /** @type {DiffsView?} */
   #diffsView = null;
   /** @type {SearchView?} */
@@ -626,12 +657,17 @@ class ChangeView {
     this.#env = env;
     this.#parent = parent;
     this.#attributesDiv = createElement('div', {style: 'flex: 1'});
-    this.#searchInput = createElement('input', {
-      name: 'q',
-      oninput: () => {
-        this.#searchView?.setSearchString(this.#searchInput.value);
-        this.#render();
-      }
+    this.#searchInput =
+        createElement('input', {name: 'q', oninput: () => this.#search()});
+    this.#caseSensitiveInput = createElement('input', {
+      name: 'case-sensitive',
+      oninput: () => this.#search(),
+      type: 'checkbox'
+    });
+    this.#regexInput = createElement('input', {
+      name: 'regex',
+      oninput: () => this.#search(),
+      type: 'checkbox'
     });
     this.attributesElement = createElement('div',
         {style: 'display: flex; flex-direction: column; height: 100%;'}, [
@@ -639,7 +675,11 @@ class ChangeView {
           createElement('div', {className: 'section-header'}, [
             createElement('span', {className: 'header-label'}),
             createElement('span', {className: 'actions'}, [
-              createElement('label', {}, ['🔍', this.#searchInput])
+              createElement('label', {}, ['🔍', this.#searchInput]),
+              createElement('label', {title: 'Case sensitive'},
+                  [this.#caseSensitiveInput, 'Aa']),
+              createElement('label', {title: 'Regular expression'},
+                  [this.#regexInput, '.*'])
             ])
           ])
         ]);
@@ -730,6 +770,15 @@ class ChangeView {
 
   revision() {
     return this.#revision;
+  }
+
+  #search() {
+    const searchInput = this.#searchInput.value;
+    if (searchInput) {
+      this.#searchView?.setSearchString(searchInput,
+          this.#caseSensitiveInput.checked, this.#regexInput.checked);
+    }
+    this.#render();
   }
 
   /**
