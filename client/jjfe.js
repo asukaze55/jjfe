@@ -167,15 +167,20 @@ class DiffsView {
   /** @type {string} */
   #revision;
   /** @type {DiffView[]} */
-  #diffViews = [];
+  #diffViews;
 
   /**
    * @param {Environment} env
    * @param {string} revision
+   * @param {string[]} files
    */
-  constructor(env, revision) {
+  constructor(env, revision, files) {
     this.#env = env;
     this.#revision = revision;
+    const expansionState =
+        (files.length > 1) ? ExpansionState.COLLAPSED : ExpansionState.DIFF;
+    this.#diffViews =
+        files.map(file => new DiffView(env, revision, file, expansionState));
     this.element = createDiv();
     this.#render();
   }
@@ -206,15 +211,6 @@ class DiffsView {
         ]),
         createElement('span', {className: 'actions'}, actionButtons)
       ]), ...this.#diffViews.map(view => view.element));
-  }
-
-  /** @param {string[]} files */
-  async setFiles(files) {
-    const expansionState =
-        (files.length > 1) ? ExpansionState.COLLAPSED : ExpansionState.DIFF;
-    this.#diffViews = files.map(
-        f => new DiffView(this.#env, this.#revision, f, expansionState));
-    this.#render();
   }
 }
 
@@ -670,6 +666,7 @@ class ChangeView {
     const changeDetails =
         new ChangeDetails(attributes, description.trim(), files);
     this.#changeDetails = changeDetails;
+    this.#diffsView = new DiffsView(this.#env, r, changeDetails.files);
     this.#render();
     return changeDetails;
   }
@@ -680,8 +677,6 @@ class ChangeView {
     if (!cwd || !r || !this.#diffsView || !this.#searchView) {
       return;
     }
-
-    this.#diffsView.setFiles(this.#changeDetails.files);
 
     const moreMenu =
         new PopupMenu(createElement('dialog', {className: 'menu'}, [
@@ -734,7 +729,7 @@ class ChangeView {
     }
     this.#revision = revision;
     this.#searchInput.value = '';
-    this.#diffsView = new DiffsView(this.#env, revision);
+    this.#diffsView = null;
     this.#searchView = new SearchView(this.#env, revision);
     return this.#fetch();
   }
