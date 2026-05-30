@@ -659,12 +659,20 @@ class ChangeView {
     this.#attributesDiv = createElement('div', {style: 'flex: 1'});
     this.#searchInput =
         createElement('input', {name: 'q', oninput: () => this.#search()});
+    let caseSensitive = false;
+    let regex = false;
+    try {
+      caseSensitive = localStorage.getItem('jjfe.caseSensitive') == '1';
+      regex = localStorage.getItem('jjfe.regex') == '1';
+    } catch {}
     this.#caseSensitiveInput = createElement('input', {
+      checked: caseSensitive,
       name: 'case-sensitive',
       oninput: () => this.#search(),
       type: 'checkbox'
     });
     this.#regexInput = createElement('input', {
+      checked: regex,
       name: 'regex',
       oninput: () => this.#search(),
       type: 'checkbox'
@@ -773,11 +781,16 @@ class ChangeView {
   }
 
   #search() {
-    const searchInput = this.#searchInput.value;
-    if (searchInput) {
-      this.#searchView?.setSearchString(searchInput,
-          this.#caseSensitiveInput.checked, this.#regexInput.checked);
+    const searchString = this.#searchInput.value;
+    const caseSensitive = this.#caseSensitiveInput.checked;
+    const regex = this.#regexInput.checked;
+    if (searchString) {
+      this.#searchView?.setSearchString(searchString, caseSensitive, regex);
     }
+    try {
+      localStorage.setItem('jjfe.caseSensitive', caseSensitive ? '1' : '0');
+      localStorage.setItem('jjfe.regex', regex ? '1' : '0');
+    } catch {}
     this.#render();
   }
 
