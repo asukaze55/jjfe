@@ -943,7 +943,7 @@ class RepositoryView {
     this.#revisionsTree = revisionsTree;
     this.#revisionsMap = revisionsMap;
     this.#bookmarksSet = bookmarksSet;
-    localStorage.setItem('path', this.#env.cwd);
+    localStorage.setItem('jjfe.path', this.#env.cwd);
     this.#render(scrollTop);
   }
 
@@ -1120,7 +1120,7 @@ class SettingsDialog {
         createElement('div', {className: 'actions'}, [
           createButton('Done', async () => {
             this.#env.jj = input.value || 'jj';
-            localStorage.setItem('jj', this.#env.jj);
+            localStorage.setItem('jjfe.jj', this.#env.jj);
             dialog.close();
           })
         ])
@@ -1175,8 +1175,8 @@ class JjfeView {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  const jj = localStorage.getItem('jj') || 'jj';
-  const cwd = location.hash.substring(1) || localStorage.getItem('path') || '';
+  const jj = localStorage.getItem('jjfe.jj') || 'jj';
+  const cwd = location.hash.substring(1) || localStorage.getItem('jjfe.path') || '';
   document.getElementById('jjfe')?.append(new JjfeView({jj, cwd}).element);
 });
 
