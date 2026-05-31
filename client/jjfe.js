@@ -434,178 +434,121 @@ class SearchView {
   }
 }
 
-class BookmarkDialog {
-  /** @type {Set<string>} */
-  #bookmarksSet;
-  /** @type {string} */
-  #description;
-  /** @type {Environment} */
-  #env;
-  /** @type {string} */
-  #revision;
-
-  /**
-   * @param {Set<string>} bookmarksSet
-   * @param {string} description
-   * @param {Environment} env
-   * @param {string} revision
-   */
-  constructor(bookmarksSet, description, env, revision) {
-    this.#bookmarksSet = bookmarksSet;
-    this.#description = description;
-    this.#env = env;
-    this.#revision = revision;
-  }
-
-  /** @returns {Promise<void>} */
-  show() {
-    return new Promise(resolve => {
-      const select = createElement('select', {name: 'bookmark-name'});
-      for (const bookmark of this.#bookmarksSet) {
-        select.append(createElement('option', {}, [bookmark]));
-      }
-      const dialog = createDialog([
-        createTitleBar(`Bookmark ${this.#revision}`, () => dialog.close()),
-        createDiv('Name: ', select),
-        createElement('pre', {}, [this.#description]),
-        createElement('div', {className: 'actions'}, [
-          createButton('Move', async () => {
-            await fetchJj('bookmark_move', {
-              ...this.#env,
-              r: this.#revision,
-              b: select.value
-            });
-            dialog.close();
-          })
-        ])
-      ]);
-      dialog.addEventListener('close', () => {
-        document.body.removeChild(dialog);
-        resolve();
-      }, {once: true});
-      document.body.append(dialog);
-      dialog.showModal();
-    });
-  }
+/**
+ * @param {HTMLDialogElement} dialog
+ * @returns {Promise<void>}
+ */
+function showDialog(dialog) {
+  return new Promise(resolve => {
+    dialog.addEventListener('close', () => {
+      document.body.removeChild(dialog);
+      resolve();
+    }, {once: true});
+    document.body.append(dialog);
+    dialog.showModal();
+  });
 }
 
-class DescribeDialog {
-  /** @type {string} */
-  #description;
-  /** @type {Environment} */
-  #env;
-  /** @type {string} */
-  #revision;
-
-  /**
-   * @param {string} description
-   * @param {Environment} env
-   * @param {string} revision
-   */
-  constructor(description, env, revision) {
-    this.#description = description;
-    this.#env = env;
-    this.#revision = revision;
+/**
+ * @param {Set<string>} bookmarksSet
+ * @param {string} description
+ * @param {Environment} env
+ * @param {string} revision
+ * @returns {Promise<void>}
+ */
+function showBookmarkDialog(bookmarksSet, description, env, revision) {
+  const select = createElement('select', {name: 'bookmark-name'});
+  for (const bookmark of bookmarksSet) {
+    select.append(createElement('option', {}, [bookmark]));
   }
-
-  /** @returns {Promise<void>} */
-  show() {
-    return new Promise(resolve => {
-      const textarea = createElement('textarea', {
-        cols: 80,
-        name: 'description',
-        rows: 10,
-        value: this.#description
-      });
-      const dialog = createDialog([
-        createTitleBar(`Describe ${this.#revision}`, () => dialog.close()),
-        textarea,
-        createElement('div', {className: 'actions'}, [
-          createButton('Describe', async () => {
-            await fetchJj('describe', {
-              ...this.#env,
-              r: this.#revision,
-              m: textarea.value.trim()
-            });
-            dialog.close();
-          })
-        ])
-      ]);
-      dialog.addEventListener('close', () => {
-        document.body.removeChild(dialog);
-        resolve();
-      }, {once: true});
-      document.body.append(dialog);
-      dialog.showModal();
-    });
-  }
+  const dialog = createDialog([
+    createTitleBar(`Bookmark ${revision}`, () => dialog.close()),
+    createDiv('Name: ', select),
+    createElement('pre', {}, [description]),
+    createElement('div', {className: 'actions'}, [
+      createButton('Move', async () => {
+        await fetchJj('bookmark_move', {
+          ...env,
+          r: revision,
+          b: select.value
+        });
+        dialog.close();
+      })
+    ])
+  ]);
+  return showDialog(dialog);
 }
 
-class RebaseDialog {
-  /** @type {Map<string, string>} */
-  #revisionsMap;
-  /** @type {Environment} */
-  #env;
-  /** @type {string} */
-  #sourceRevision;
-  /** @type {string} */
-  #ontoRevision;
+/**
+ * @param {string} description
+ * @param {Environment} env
+ * @param {string} revision
+ * @returns {Promise<void>}
+ */
+function showDescribeDialog(description, env, revision) {
+  const textarea = createElement('textarea', {
+    cols: 80,
+    name: 'description',
+    rows: 10,
+    value: description
+  });
+  const dialog = createDialog([
+    createTitleBar(`Describe ${revision}`, () => dialog.close()),
+    textarea,
+    createElement('div', {className: 'actions'}, [
+      createButton('Describe', async () => {
+        await fetchJj('describe', {
+          ...env,
+          r: revision,
+          m: textarea.value.trim()
+        });
+        dialog.close();
+      })
+    ])
+  ]);
+  return showDialog(dialog);
+}
 
-  /**
-   * @param {Map<string, string>} revisionsMap
-   * @param {Environment} env
-   * @param {string} sourceRevision
-   * @param {string=} ontoRevision
-   */
-  constructor(revisionsMap, env, sourceRevision, ontoRevision = '@') {
-    this.#revisionsMap = revisionsMap;
-    this.#env = env;
-    this.#sourceRevision = sourceRevision;
-    this.#ontoRevision = ontoRevision;
-  }
-
-  /** @returns {Promise<void>} */
-  show() {
-    return new Promise(resolve => {
-      const sourceSelect = createElement('select', {name: 'source-revision'});
-      sourceSelect.append(createElement('option', {value: '@'}, ['@']));
-      const ontoSelect = createElement('select', {name: 'onto-revision'});
-      ontoSelect.append(createElement('option', {value: '@'}, ['@']));
-      this.#revisionsMap.forEach((line, revision) => {
-        sourceSelect.append(createElement('option', {
-          selected: (revision == this.#sourceRevision),
-          value: revision
-        }, [line]));
-        ontoSelect.append(createElement('option', {
-          selected: (revision == this.#ontoRevision),
-          value: revision
-        }, [line]));
-      });
-      const dialog = createDialog([
-        createTitleBar('Rebase', () => dialog.close()),
-        createDiv('Source:'),
-        sourceSelect,
-        createDiv('Onto:'),
-        ontoSelect,
-        createElement('div', {className: 'actions'}, [
-          createButton('Rebase', async () => {
-            await fetchJj('rebase', {
-              ...this.#env,
-              s: sourceSelect.value,
-              o: ontoSelect.value
-            });
-            dialog.close();
-          })
-        ])
-      ]);
-      dialog.addEventListener('close', () => {
-        document.body.removeChild(dialog);
-        resolve();
-      }, {once: true});
-      document.body.append(dialog);
-      dialog.showModal();
-    });
-  }
+/**
+ * @param {Map<string, string>} revisionsMap
+ * @param {Environment} env
+ * @param {string} sourceRevision
+ * @param {string=} ontoRevision
+ * @returns {Promise<void>}
+ */
+function showRebaseDialog(revisionsMap, env, sourceRevision, ontoRevision = '@') {
+  const sourceSelect = createElement('select', {name: 'source-revision'});
+  sourceSelect.append(createElement('option', {value: '@'}, ['@']));
+  const ontoSelect = createElement('select', {name: 'onto-revision'});
+  ontoSelect.append(createElement('option', {value: '@'}, ['@']));
+  revisionsMap.forEach((line, revision) => {
+    sourceSelect.append(createElement('option', {
+      selected: (revision == sourceRevision),
+      value: revision
+    }, [line]));
+    ontoSelect.append(createElement('option', {
+      selected: (revision == ontoRevision),
+      value: revision
+    }, [line]));
+  });
+  const dialog = createDialog([
+    createTitleBar('Rebase', () => dialog.close()),
+    createDiv('Source:'),
+    sourceSelect,
+    createDiv('Onto:'),
+    ontoSelect,
+    createElement('div', {className: 'actions'}, [
+      createButton('Rebase', async () => {
+        await fetchJj('rebase', {
+          ...env,
+          s: sourceSelect.value,
+          o: ontoSelect.value
+        });
+        dialog.close();
+      })
+    ])
+  ]);
+  return showDialog(dialog);
 }
 
 class ChangeDetails {
@@ -902,8 +845,8 @@ class RepositoryView {
    */
   async bookmark(revision, changeDetails) {
     const details = await changeDetails;
-    await new BookmarkDialog(this.#bookmarksSet, details.description,
-        this.#env, revision).show();
+    await showBookmarkDialog(
+        this.#bookmarksSet, details.description, this.#env, revision);
     await this.fetch();
   }
 
@@ -913,7 +856,7 @@ class RepositoryView {
    */
   async describe(revision, changeDetails) {
     const details = await changeDetails;
-    await new DescribeDialog(details.description, this.#env, revision).show();
+    await showDescribeDialog(details.description, this.#env, revision);
     await this.fetch();
   }
 
@@ -968,7 +911,7 @@ class RepositoryView {
 
   /** @param {string} revision */
   async rebase(revision) {
-    await new RebaseDialog(this.#revisionsMap, this.#env, revision).show();
+    await showRebaseDialog(this.#revisionsMap, this.#env, revision);
     await this.fetch();
   }
 
@@ -1018,8 +961,8 @@ class RepositoryView {
             .elementFromPoint(event.clientX, event.clientY)
             ?.closest('option')?.value;
         if (dropRevision && revision != dropRevision) {
-          await new RebaseDialog(
-              this.#revisionsMap, this.#env, revision, dropRevision).show();
+          await showRebaseDialog(
+              this.#revisionsMap, this.#env, revision, dropRevision);
           await this.fetch();
         }
       }, {once: true});
@@ -1114,38 +1057,24 @@ class RepositoryView {
   }
 }
 
-class SettingsDialog {
-  /** @type {Environment} */
-  #env;
-
-  /** @param {Environment} env */
-  constructor(env) {
-    this.#env = env;
-  }
-
-  /** @returns {Promise<void>} */
-  show() {
-    return new Promise(resolve => {
-      const input = createElement('input', {value: this.#env.jj});
-      const dialog = createDialog([
-        createTitleBar('Settings', () => dialog.close()),
-        createDiv('Path to jj: ', input),
-        createElement('div', {className: 'actions'}, [
-          createButton('Done', async () => {
-            this.#env.jj = input.value || 'jj';
-            localStorage.setItem('jjfe.jj', this.#env.jj);
-            dialog.close();
-          })
-        ])
-      ]);
-      dialog.addEventListener('close', () => {
-        document.body.removeChild(dialog);
-        resolve();
-      }, {once: true});
-      document.body.append(dialog);
-      dialog.showModal();
-    });
-  }
+/**
+ * @param {Environment} env
+ * @returns {Promise<void>}
+ */
+function showSettingsDialog(env) {
+  const input = createElement('input', {value: env.jj});
+  const dialog = createDialog([
+    createTitleBar('Settings', () => dialog.close()),
+    createDiv('Path to jj: ', input),
+    createElement('div', {className: 'actions'}, [
+      createButton('Done', async () => {
+        env.jj = input.value || 'jj';
+        localStorage.setItem('jjfe.jj', env.jj);
+        dialog.close();
+      })
+    ])
+  ]);
+  return showDialog(dialog);
 }
 
 class JjfeView {
@@ -1169,8 +1098,8 @@ class JjfeView {
     this.element = createDiv(createElement('div', {style: 'display: flex;'}, [
       createElement('h1', {}, ['JJFE']),
       this.#input,
-      createButton('🛠️',
-          () => new SettingsDialog(this.#env).show(), {style: 'margin: 8px 0'})
+      createButton(
+          '🛠️', () => showSettingsDialog(this.#env), {style: 'margin: 8px 0'})
     ]));
     this.#render();
   }
