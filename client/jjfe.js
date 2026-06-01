@@ -682,22 +682,6 @@ class ChangeView {
       return;
     }
 
-    const moreMenu =
-        new PopupMenu(createElement('dialog', {className: 'menu'}, [
-          createElement('ul', {}, [
-            createElement('li', {}, [
-              createButton('Bookmark',
-                  () => this.#parent.bookmark(r, this.#changeDetails))
-            ]),
-            createElement('li', {}, [
-              createButton('Rebase', () => this.#parent.rebase(r))
-            ]),
-            createElement('li', {}, [
-              createButton('Abandon', () => this.#parent.abandon(r))
-            ])
-          ])
-        ]));
-
     this.#attributesDiv.replaceChildren(
         createElement('div', {className: 'section-header'}, [
           createElement('span', {className: 'header-label'}, [`Change: ${r}`]),
@@ -707,7 +691,18 @@ class ChangeView {
             createButton('Edit', () => this.#parent.edit(r)),
             createButton('New', () => this.#parent.new(r)),
             createButton('Squash', () => this.#parent.squash(r)),
-            moreMenu.createMoreButton(),
+            createPopupButton(createElement('ul', {}, [
+              createElement('li', {}, [
+                createButton('Bookmark',
+                    () => this.#parent.bookmark(r, this.#changeDetails))
+              ]),
+              createElement('li', {}, [
+                createButton('Rebase', () => this.#parent.rebase(r))
+              ]),
+              createElement('li', {}, [
+                createButton('Abandon', () => this.#parent.abandon(r))
+              ])
+            ]))
           ]),
         ]),
         createElement('pre', {}, [this.#changeDetails.attributes]),
@@ -753,62 +748,56 @@ class ChangeView {
   }
 }
 
-class PopupMenu {
-  /** @type {HTMLDialogElement} */
-  #dialog;
+/**
+ * @param {HTMLDialogElement} dialog
+ * @param {Element} referenceElement
+ * @param {{left?: number, right?: number, top?: number}} position
+ * @returns {Promise<void>}
+ */
+async function showPopupMenu(dialog, referenceElement, position) {
+  return new Promise(resolve => {
+    const closeDialog = () => dialog.close();
+    dialog.addEventListener('close', () => {
+      dialog.remove();
+      document.removeEventListener('click', closeDialog);
+      resolve();
+    }, {once: true});
+    referenceElement.after(dialog);
+    document.addEventListener('click', closeDialog);
+    if (position.left != null) {
+      dialog.style.left = position.left + 'px';
+    }
+    if (position.top != null) {
+      dialog.style.top = position.top + 'px';
+    }
+    dialog.show();
+    if (position.right != null) {
+      dialog.style.left =
+          (position.right - dialog.getBoundingClientRect().width) + 'px';
+    }
+  });
+}
 
-  /** @param {HTMLDialogElement} dialog */
-  constructor(dialog) {
-    this.#dialog = dialog;
-  }
-
-  /** @returns {HTMLSpanElement} */
-  createMoreButton() {
-    const button = createElement('button', {
-      ariaLabel: 'More options',
-      className: 'icon-button',
-      type: 'button'
-    }, ['︙']);
-    button.addEventListener('click', event => {
-      if (!this.#dialog.open) {
-        const rect = button.getBoundingClientRect();
-        this.show(
-            button, {right: rect.right+ scrollX, top: rect.bottom + scrollY});
-        event.stopPropagation();
-      }
-    });
-    return button;
-  }
-
-  /**
-   * @param {Element} referenceElement
-   * @param {{left?: number, right?: number, top?: number}} position
-   * @returns {Promise<void>}
-   */
-  show(referenceElement, position) {
-    return new Promise(resolve => {
-      const dialog = this.#dialog;
-      const closeDialog = () => dialog.close();
-      dialog.addEventListener('close', () => {
-        dialog.remove();
-        document.removeEventListener('click', closeDialog);
-        resolve();
-      }, {once: true});
-      referenceElement.after(dialog);
-      document.addEventListener('click', closeDialog);
-      if (position.left != null) {
-        dialog.style.left = position.left + 'px';
-      }
-      if (position.top != null) {
-        dialog.style.top = position.top + 'px';
-      }
-      dialog.show();
-      if (position.right != null) {
-        dialog.style.left =
-            (position.right - dialog.getBoundingClientRect().width) + 'px';
-      }
-    });
-  }
+/**
+ * @param {HTMLElement} content
+ * @returns {HTMLButtonElement}
+ */
+function createPopupButton(content) {
+  const button = createElement('button', {
+    ariaLabel: 'More options',
+    className: 'icon-button',
+    type: 'button'
+  }, ['︙']);
+  const dialog = createElement('dialog', {className: 'menu'}, [content]);
+  button.addEventListener('click', event => {
+    if (!dialog.open) {
+      const rect = button.getBoundingClientRect();
+      showPopupMenu(dialog, button,
+          {right: rect.right+ scrollX, top: rect.bottom + scrollY});
+       event.stopPropagation();
+    }
+  });
+  return button;
 }
 
 class RepositoryView {
@@ -984,7 +973,7 @@ class RepositoryView {
         option.addEventListener('contextmenu', event => {
           option.selected = true;
           const changeDetails = this.#changeView.setRevision(revision);
-          new PopupMenu(createElement('dialog', {className: 'menu'}, [
+          showPopupMenu(createElement('dialog', {className: 'menu'}, [
             createElement('ul', {}, [
               createElement('li', {}, [
                 createButton(
@@ -1010,19 +999,12 @@ class RepositoryView {
                 createButton('Abandon', () => this.abandon(revision))
               ]),
             ])
-          ])).show(select, {left: event.pageX, top: event.pageY});
+          ]), select, {left: event.pageX, top: event.pageY});
           event.preventDefault();
         });
       }
       select.append(option);
     }
-
-    const moreMenu =
-        new PopupMenu(createElement('dialog', {className: 'menu'}, [
-          createElement('ul', {}, [
-            createElement('li', {}, [createButton('Undo', () => this.#undo())])
-          ])
-        ]));
 
     this.element.replaceChildren(
         createElement('div', {style: 'display: flex'}, [
@@ -1034,7 +1016,11 @@ class RepositoryView {
                   this.#changeView = new ChangeView(this.#env, this);
                   this.fetch();
                 }),
-                moreMenu.createMoreButton()
+                createPopupButton(createElement('ul', {}, [
+                  createElement('li', {}, [
+                    createButton('Undo', () => this.#undo())
+                  ])
+                ]))
               ])
             ]), select]),
           createElement('div', {style: 'flex: 1; padding-left: 1em;'},
