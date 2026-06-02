@@ -4,12 +4,12 @@ const { fetchJj } = require('./fetch_jj.js');
 
 /** @typedef {{jj: string, cwd: string}} Environment */
 
-/** @enum {number} */
-const ExpansionState = {
+const ExpansionState = /** @type {const} */({
   COLLAPSED: -1,
   CONTEXT: 5,
   EXPANDED: 1000
-};
+});
+/** @typedef {(typeof ExpansionState)[keyof typeof ExpansionState]} ExpansionState */
 
 /**
  * @param {number|string} lineNumber
