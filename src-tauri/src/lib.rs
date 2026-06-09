@@ -97,6 +97,11 @@ fn diff(jj: &str, cwd: &str, r: &str, c: i32, f: &str) -> Result<String> {
 }
 
 #[tauri::command]
+fn duplicate(jj: &str, cwd: &str, r: &str) -> Result<String> {
+    shell_exec(jj, cwd, &["duplicate", "-r", validate_revision(r)])
+}
+
+#[tauri::command]
 fn edit(jj: &str, cwd: &str, r: &str) -> Result<String> {
     shell_exec(jj, cwd, &["edit", "-r", validate_revision(r)])
 }
@@ -188,6 +193,7 @@ pub fn run() {
             bookmark_move,
             describe,
             diff,
+            duplicate,
             edit,
             file_search,
             file_show,

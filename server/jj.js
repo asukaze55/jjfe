@@ -63,6 +63,9 @@ function runJj(request, response) {
         const c = validate(json.c, /^\d+$/);
         const f = validate(json.f, /^[^\"]+$/);
         args = ['diff', '--git', '-r', r, '--context', c, `file:'${f}'`];
+      } else if (request.url == '/jj/duplicate') {
+        const r = validateRevision(json.r);
+        args = ['duplicate', '-r', r];
       } else if (request.url == '/jj/edit') {
         const r = validateRevision(json.r);
         args = ['edit', '-r', r];

@@ -697,6 +697,9 @@ class ChangeView {
                     () => this.#parent.bookmark(r, this.#changeDetails))
               ]),
               createElement('li', {}, [
+                createButton('Duplicate', () => this.#parent.duplicate(r))
+              ]),
+              createElement('li', {}, [
                 createButton('Rebase', () => this.#parent.rebase(r))
               ]),
               createElement('li', {}, [
@@ -850,6 +853,12 @@ class RepositoryView {
   }
 
   /** @param {string} revision */
+  async duplicate(revision) {
+    await fetchJj('duplicate', {...this.#env, r: revision});
+    await this.fetch();
+  }
+
+  /** @param {string} revision */
   async edit(revision) {
     await fetchJj('edit', {...this.#env, r: revision});
     await this.fetch();
@@ -991,6 +1000,9 @@ class RepositoryView {
               createElement('li', {}, [
                 createButton(
                     'Bookmark', () => this.bookmark(revision, changeDetails))
+              ]),
+              createElement('li', {}, [
+                createButton('Duplicate', () => this.duplicate(revision))
               ]),
               createElement('li', {}, [
                 createButton('Rebase', () => this.rebase(revision))
