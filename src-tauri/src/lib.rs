@@ -111,7 +111,15 @@ fn file_search(jj: &str, cwd: &str, r: &str, p: &str) -> Result<String> {
     shell_exec(
         jj,
         cwd,
-        &["file", "search", "-r", validate_revision(r), "-p", p],
+        &[
+            "file",
+            "search",
+            "--name-only",
+            "-r",
+            validate_revision(r),
+            "-p",
+            p,
+        ],
     )
 }
 
