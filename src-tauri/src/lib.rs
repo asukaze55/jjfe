@@ -139,6 +139,11 @@ fn file_show(jj: &str, cwd: &str, r: &str, f: &str) -> Result<String> {
 }
 
 #[tauri::command]
+fn git_push(jj: &str, cwd: &str, b: &str) -> Result<String> {
+    shell_exec(jj, cwd, &["git", "push", "-b", validate(b, r"^[\w\d\.]+$")])
+}
+
+#[tauri::command]
 fn log(jj: &str, cwd: &str, n: i32) -> Result<String> {
     shell_exec(
         jj,
@@ -205,6 +210,7 @@ pub fn run() {
             edit,
             file_search,
             file_show,
+            git_push,
             log,
             new,
             rebase,

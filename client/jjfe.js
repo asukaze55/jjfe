@@ -461,10 +461,13 @@ function showBookmarkDialog(bookmarksSet, description, env, revision) {
   for (const bookmark of bookmarksSet) {
     select.append(createElement('option', {}, [bookmark]));
   }
+  const gitPushInput =
+      createElement('input', {name: 'git-push', type: 'checkbox'});
   const dialog = createDialog([
     createTitleBar(`Bookmark ${revision}`, () => dialog.close()),
     createDiv('Name: ', select),
     createElement('pre', {}, [description]),
+    createDiv(createElement('label', {}, [gitPushInput, 'Push to git'])),
     createElement('div', {className: 'actions'}, [
       createButton('Move', async () => {
         await fetchJj('bookmark_move', {
@@ -472,6 +475,9 @@ function showBookmarkDialog(bookmarksSet, description, env, revision) {
           r: revision,
           b: select.value
         });
+        if (gitPushInput.checked) {
+          await fetchJj('git_push', {...env, b: select.value});
+        }
         dialog.close();
       })
     ])
