@@ -638,7 +638,7 @@ class ChangeView {
   }
 
   /** @returns {Promise<ChangeDetails>} */
-  async #fetch() {
+  async fetch() {
     const cwd = this.#env.cwd;
     const r = this.#revision;
     if (!cwd || !r) {
@@ -747,7 +747,7 @@ class ChangeView {
     this.#searchInput.value = '';
     this.#diffsView = null;
     this.#searchView = new SearchView(this.#env, revision);
-    return this.#fetch();
+    return this.fetch();
   }
 }
 
@@ -822,13 +822,13 @@ class RepositoryView {
     this.#env = env;
     this.#changeView = new ChangeView(this.#env, this);
     this.element = createDiv();
-    this.fetch();
+    this.#fetch();
   }
 
   /** @param {string} revision */
   async abandon(revision) {
     await fetchJj('abandon', {...this.#env, r: revision});
-    await this.fetch();
+    await this.#reload();
   }
 
   /**
@@ -839,7 +839,7 @@ class RepositoryView {
     const details = await changeDetails;
     await showBookmarkDialog(
         this.#bookmarksSet, details.description, this.#env, revision);
-    await this.fetch();
+    await this.#reload();
   }
 
   /**
@@ -849,22 +849,22 @@ class RepositoryView {
   async describe(revision, changeDetails) {
     const details = await changeDetails;
     await showDescribeDialog(details.description, this.#env, revision);
-    await this.fetch();
+    await this.#reload();
   }
 
   /** @param {string} revision */
   async duplicate(revision) {
     await fetchJj('duplicate', {...this.#env, r: revision});
-    await this.fetch();
+    await this.#reload();
   }
 
   /** @param {string} revision */
   async edit(revision) {
     await fetchJj('edit', {...this.#env, r: revision});
-    await this.fetch();
+    await this.#reload();
   }
 
-  async fetch(fetchCount = 20, scrollTop = 0) {
+  async #fetch(fetchCount = 20, scrollTop = 0) {
     this.#fetchCount = fetchCount;
     const response = await fetchJj('log', {...this.#env, n: fetchCount});
 
@@ -904,13 +904,17 @@ class RepositoryView {
   /** @param {string} revision */
   async new(revision) {
     await fetchJj('new', {...this.#env, r: revision});
-    await this.fetch();
+    await this.#reload();
   }
 
   /** @param {string} revision */
   async rebase(revision) {
     await showRebaseDialog(this.#revisionsMap, this.#env, revision);
-    await this.fetch();
+    await this.#reload();
+  }
+
+  #reload() {
+    return Promise.all([this.#changeView.fetch(), this.#fetch()]);
   }
 
   /** @param {number} scrollTop */
@@ -961,13 +965,13 @@ class RepositoryView {
         if (dropRevision && revision != dropRevision) {
           await showRebaseDialog(
               this.#revisionsMap, this.#env, revision, dropRevision);
-          await this.fetch();
+          await this.#reload();
         }
       }, {once: true});
     });
     const observer = new IntersectionObserver(entries => {
       if (entries.some(entry => entry.isIntersecting)) {
-        this.fetch(this.#fetchCount + 20, select.scrollTop);
+        this.#fetch(this.#fetchCount + 20, select.scrollTop);
       }
     }, {root: select});
 
@@ -1024,10 +1028,7 @@ class RepositoryView {
             createElement('div', {className: 'section-header'}, [
               createElement('span', {className: 'header-label'}, ['Log']),
               createElement('span', {className: 'actions'}, [
-                createButton('Reload', () => {
-                  this.#changeView = new ChangeView(this.#env, this);
-                  this.fetch();
-                }),
+                createButton('Reload', () => this.#reload()),
                 createPopupButton(createElement('ul', {}, [
                   createElement('li', {}, [
                     createButton('Undo', () => this.#undo())
@@ -1046,12 +1047,12 @@ class RepositoryView {
   /** @param {string} revision */
   async squash(revision) {
     await fetchJj('squash', {...this.#env, r: revision});
-    await this.fetch();
+    await this.#reload();
   }
 
   async #undo() {
     await fetchJj('undo', this.#env);
-    await this.fetch();
+    await this.#reload();
   }
 }
 
