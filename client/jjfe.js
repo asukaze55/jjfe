@@ -755,6 +755,11 @@ class ChangeView {
     this.#searchView = new SearchView(this.#env, revision);
     return this.fetch();
   }
+
+  /** @param {string} searchString */
+  setSearchString(searchString) {
+    this.#searchInput.value = searchString;
+  }
 }
 
 /**
@@ -920,6 +925,7 @@ class RepositoryView {
   }
 
   #reload() {
+    this.#changeView.setSearchString('');
     return Promise.all([this.#changeView.fetch(), this.#fetch()]);
   }
 
