@@ -463,25 +463,22 @@ function showBookmarkDialog(bookmarksSet, description, env, revision) {
   }
   const gitPushInput =
       createElement('input', {name: 'git-push', type: 'checkbox'});
+  const moveButton = createElement('button', {}, ['Move']);
   const dialog = createDialog([
     createTitleBar(`Bookmark ${revision}`, () => dialog.close()),
     createDiv('Name: ', select),
     createElement('pre', {}, [description]),
     createDiv(createElement('label', {}, [gitPushInput, 'Push to git'])),
-    createElement('div', {className: 'actions'}, [
-      createButton('Move', async () => {
-        await fetchJj('bookmark_move', {
-          ...env,
-          r: revision,
-          b: select.value
-        });
-        if (gitPushInput.checked) {
-          await fetchJj('git_push', {...env, b: select.value});
-        }
-        dialog.close();
-      })
-    ])
+    createElement('div', {className: 'actions'}, [moveButton])
   ]);
+  moveButton.addEventListener('click', async () => {
+    moveButton.disabled = true;
+    await fetchJj('bookmark_move', {...env, r: revision, b: select.value});
+    if (gitPushInput.checked) {
+      await fetchJj('git_push', {...env, b: select.value});
+    }
+    dialog.close();
+  })
   return showDialog(dialog);
 }
 
