@@ -1,5 +1,6 @@
 {
+  "type": "module",
   "scripts": {
-    "build": "webpack"
+    "build": "node build.js"
   }
 }
