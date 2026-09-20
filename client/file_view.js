@@ -11,6 +11,9 @@ const ExpansionState = /** @type {const} */({
 });
 /** @typedef {(typeof ExpansionState)[keyof typeof ExpansionState]} ExpansionState */
 
+/** @typedef {{ lineNumber?: number, text: string }} DiffLineData */
+/** @typedef {{ type: 'change'|'content'|'section', deleted?: DiffLineData, inserted?: DiffLineData }} DiffLine */
+
 /**
  * @param {number|string} lineNumber
  * @param {string=} className
@@ -24,6 +27,120 @@ function createLine(lineNumber, className = '', children = []) {
     div.classList.add(className);
   }
   return div;
+}
+
+/**
+ * @param {string[]} lines
+ * @returns {DiffLine[]}
+ */
+function parseDiffLines(lines) {
+  /** @type {DiffLine[]} */
+  const diffLines = [];
+  let deletedLineNumber = 1;
+  let insertedLineNumber = 1;
+  /** @type {DiffLineData[]} */
+  const deletedLines = [];
+  /** @type {DiffLineData[]} */
+  const insertedLines = [];
+  for (const line of lines) {
+    if (!line.startsWith('-') && !line.startsWith('+')) {
+      while (deletedLines.length > 0 || insertedLines.length > 0) {
+        diffLines.push({
+          type: 'change',
+          deleted: deletedLines.shift(),
+          inserted: insertedLines.shift()
+        });
+      }
+    }
+
+    if (line.startsWith('@')) {
+      const match = line.match(/-(\d+),(\d+)?\s*\+(\d+),(\d+)?/);
+      if (match) {
+        deletedLineNumber = Number(match[1]);
+        insertedLineNumber = Number(match[3]);
+        diffLines.push({
+          type: 'section',
+          deleted: {text: `${match[1]},${match[2]}`},
+          inserted: {text: `${match[3]},${match[4]}`}
+        });
+      }
+    } else if (line.startsWith(' ')) {
+      diffLines.push({
+        type: 'content',
+        deleted: {lineNumber: deletedLineNumber++, text: line.substring(1)},
+        inserted: {lineNumber: insertedLineNumber++, text: line.substring(1)}
+      });
+    } else if (line.startsWith('-') && !line.startsWith('--- ')) {
+      deletedLines.push({
+        lineNumber: deletedLineNumber++,
+        text: line.substring(1)
+      });
+    } else if (line.startsWith('+') && !line.startsWith('+++ ')) {
+      insertedLines.push({
+        lineNumber: insertedLineNumber++,
+        text: line.substring(1)
+      });
+    }
+  }
+  return diffLines;
+}
+
+/**
+ * @param {DiffLine[]} lines
+ * @returns {HTMLDivElement[]}
+ */
+function renderDiffLines(lines) {
+  const left = createElement('div', {className: 'diff'});
+  const right = createElement('div', {className: 'diff'});
+  for (const line of lines) {
+    const deletedText = line.deleted?.text;
+    const deletedLineNumber = line.deleted?.lineNumber ?? '';
+    const insertedText = line.inserted?.text;
+    const insertedLineNumber = line.inserted?.lineNumber ?? '';
+    if (line.type == 'section') {
+      left.append(createElement('div', {className: 'section'}, [deletedText]));
+      right.append(
+          createElement('div', {className: 'section'}, [insertedText]));
+      continue;
+    }
+    if (line.type == 'content') {
+      left.append(createLine(deletedLineNumber, '', [deletedText]));
+      right.append(createLine(insertedLineNumber, '', [insertedText]));
+      continue;
+    }
+    if (!deletedText || !insertedText) {
+      left.append((deletedText != null)
+          ? createLine(deletedLineNumber, 'del', [deletedText])
+          : createLine(''));
+      right.append((insertedText != null)
+          ? createLine(insertedLineNumber, 'ins', [insertedText])
+          : createLine(''));
+      continue;
+    }
+
+    let p = 0;
+    while (p < deletedText.length && deletedText[p] == insertedText[p]) {
+      p++;
+    }
+    let q = 0;
+    while (q < deletedText.length - p && q < insertedText.length - p &&
+        deletedText.at(-q - 1) == insertedText.at(-q - 1)) {
+      q++;
+    }
+    left.append(createLine(deletedLineNumber, 'del', [
+      deletedText.substring(0, p),
+      createElement('span', {className: 'del'},
+          [deletedText.substring(p, deletedText.length - q)]),
+      deletedText.substring(deletedText.length - q)
+    ]));
+    right.append(createLine(insertedLineNumber, 'ins', [
+      insertedText.substring(0, p),
+      createElement('span', {className: 'ins'},
+          [insertedText.substring(p, insertedText.length - q)]),
+      insertedText.substring(insertedText.length - q)
+    ]));
+  }
+  return [left, right];
 }
 
 class DiffView {
@@ -81,74 +198,8 @@ class DiffView {
     if (this.#expansionState == ExpansionState.COLLAPSED) {
       return;
     }
-    const left = createElement('div', {className: 'diff'});
-    const right = createElement('div', {className: 'diff'});
-    let leftLineNumber = 1;
-    let rightLineNumber = 1;
-    const deletedLines = [];
-    const insertedLines = [];
-    for (const line of this.#response.split('\n')) {
-      if (!line.startsWith('-') && !line.startsWith('+')) {
-        while (deletedLines.length > 0 || insertedLines.length > 0) {
-          let deleted = deletedLines.shift();
-          let inserted = insertedLines.shift();
-          if (deleted && inserted) {
-            let p = 0;
-            while (p < deleted.length && deleted[p] == inserted[p]) {
-              p++;
-            }
-            let q = 0;
-            while (q < deleted.length - p && q < inserted.length - p &&
-                deleted.at(-q - 1) == inserted.at(-q - 1)) {
-              q++;
-            }
-            left.append(createLine(leftLineNumber++, 'del', [
-              deleted.substring(0, p),
-              createElement('span', {className: 'del'},
-                  [deleted.substring(p, deleted.length - q)]),
-              deleted.substring(deleted.length - q)
-            ]));
-            right.append(createLine(rightLineNumber++, 'ins', [
-              inserted.substring(0, p),
-              createElement('span', {className: 'ins'},
-                  [inserted.substring(p, inserted.length - q)]),
-              inserted.substring(inserted.length - q)
-            ]));
-          } else {
-            if (deleted != null) {
-              left.append(createLine(leftLineNumber++, 'del', [deleted]));
-            } else {
-              left.append(createLine(''));
-            }
-            if (inserted != null) {
-              right.append(createLine(rightLineNumber++, 'ins', [inserted]));
-            } else {
-              right.append(createLine(''));
-            }
-          }
-        }
-      }
-
-      if (line.startsWith('@')) {
-        const match = line.match(/-(\d+),(\d+)?\s*\+(\d+),(\d+)?/);
-        if (match) {
-          leftLineNumber = Number(match[1]);
-          rightLineNumber = Number(match[3]);
-          left.append(createElement(
-              'div', {className: 'section'}, [`${match[1]},${match[2]}`]));
-          right.append(createElement(
-              'div', {className: 'section'}, [`${match[3]},${match[4]}`]));
-        }
-      } else if (line.startsWith(' ')) {
-        left.append(createLine(leftLineNumber++, '', [line.substring(1)]));
-        right.append(createLine(rightLineNumber++, '', [line.substring(1)]));
-      } else if (line.startsWith('-') && !line.startsWith('--- ')) {
-        deletedLines.push(line.substring(1));
-      } else if (line.startsWith('+') && !line.startsWith('+++ ')) {
-        insertedLines.push(line.substring(1));
-      }
-    }
-    this.element.append(left, right);
+    const diffLines = parseDiffLines(this.#response.split('\n'));
+    this.element.append(...renderDiffLines(diffLines));
   }
 
   /** @param {ExpansionState} expansionState */
