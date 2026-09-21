@@ -11,7 +11,7 @@ const ExpansionState = /** @type {const} */({
 });
 /** @typedef {(typeof ExpansionState)[keyof typeof ExpansionState]} ExpansionState */
 
-/** @typedef {{ lineNumber?: number, text: string }} DiffLineData */
+/** @typedef {{ lineNumber?: number, text: string, isWarning?: boolean }} DiffLineData */
 /** @typedef {{ type: 'change'|'content'|'section', deleted?: DiffLineData, inserted?: DiffLineData }} DiffLine */
 
 /**
@@ -42,8 +42,10 @@ function parseDiffLines(lines) {
   const deletedLines = [];
   /** @type {DiffLineData[]} */
   const insertedLines = [];
+  let currentLines = insertedLines;
   for (const line of lines) {
-    if (!line.startsWith('-') && !line.startsWith('+')) {
+    if (!line.startsWith('-') && !line.startsWith('+') &&
+        !line.startsWith('\\')) {
       while (deletedLines.length > 0 || insertedLines.length > 0) {
         diffLines.push({
           type: 'change',
@@ -75,11 +77,18 @@ function parseDiffLines(lines) {
         lineNumber: deletedLineNumber++,
         text: line.substring(1)
       });
+      currentLines = deletedLines;
     } else if (line.startsWith('+') && !line.startsWith('+++ ')) {
       insertedLines.push({
         lineNumber: insertedLineNumber++,
         text: line.substring(1)
       });
+      currentLines = insertedLines;
+    } else if (line.startsWith('\\')) {
+      currentLines.push({
+        text: '⚠️' + line.substring(1),
+        isWarning: true
+      })
     }
   }
   return diffLines;
@@ -108,7 +117,8 @@ function renderDiffLines(lines) {
       right.append(createLine(insertedLineNumber, '', [insertedText]));
       continue;
     }
-    if (!deletedText || !insertedText) {
+    if (!deletedText || !insertedText ||
+        line.deleted?.isWarning || line.inserted?.isWarning) {
       left.append((deletedText != null)
           ? createLine(deletedLineNumber, 'del', [deletedText])
           : createLine(''));
